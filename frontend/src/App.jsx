@@ -1,10 +1,20 @@
+import { useAuth } from './auth/useAuth.js';
+import AccountPanel from './components/AccountPanel.jsx';
 import ApiStatus from './components/ApiStatus.jsx';
+import AuthPanel from './components/AuthPanel.jsx';
 
 export default function App() {
+  const { user, isCheckingSession, notice, login, register, logout } = useAuth();
+
   return (
     <div className="page">
       <header className="site-header">
         <span className="brand">HealthTrack</span>
+        {user && (
+          <button type="button" className="button button--secondary" onClick={logout}>
+            Log out
+          </button>
+        )}
       </header>
 
       <main className="hero">
@@ -12,6 +22,11 @@ export default function App() {
         <p className="lead">
           Log your symptoms, follow their severity, and share your records with your doctor.
         </p>
+        {isCheckingSession && <p role="status">Checking your session…</p>}
+        {!isCheckingSession && user && <AccountPanel user={user} />}
+        {!isCheckingSession && !user && (
+          <AuthPanel notice={notice} onLogin={login} onRegister={register} />
+        )}
         <ApiStatus />
       </main>
 
