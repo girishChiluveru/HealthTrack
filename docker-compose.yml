@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: healthtrack-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-healthtrack}
+      # Local development only. Must match DATABASE_URL in backend/.env.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-local-only}
+      POSTGRES_DB: ${POSTGRES_DB:-healthtrack}
+    ports:
+      # Bound to loopback so the database is not reachable from the network.
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres_data:
