@@ -9,10 +9,11 @@ export function setUnauthorizedHandler(handler) {
 }
 
 export class ApiError extends Error {
-  constructor(message, { status = null, fieldErrors = {} } = {}) {
+  constructor(message, { status = null, fieldErrors = {}, errors = [] } = {}) {
     super(message);
     this.status = status;
     this.fieldErrors = fieldErrors;
+    this.errors = errors;
   }
 }
 
@@ -72,5 +73,6 @@ export async function apiRequest(path, { method = 'GET', body, signal } = {}) {
   throw new ApiError(data?.detail ?? 'Something went wrong. Please try again.', {
     status: response.status,
     fieldErrors: toFieldErrors(data?.errors),
+    errors: data?.errors ?? [],
   });
 }

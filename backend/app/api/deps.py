@@ -61,3 +61,6 @@ def require_role(role: UserRole) -> Callable[[User], User]:
         return user
 
     return dependency
+
+
+PatientUser = Annotated[User, Depends(require_role(UserRole.PATIENT))]

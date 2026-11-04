@@ -1,6 +1,6 @@
 import { useId } from 'react';
 
-export default function FormField({ label, hint, error, ...inputProps }) {
+export default function FormField({ as: Control = 'input', label, hint, error, ...controlProps }) {
   const id = useId();
   const hintId = `${id}-hint`;
   const errorId = `${id}-error`;
@@ -9,11 +9,11 @@ export default function FormField({ label, hint, error, ...inputProps }) {
   return (
     <div className="field">
       <label htmlFor={id}>{label}</label>
-      <input
+      <Control
         id={id}
         aria-invalid={error ? 'true' : undefined}
         aria-describedby={describedBy || undefined}
-        {...inputProps}
+        {...controlProps}
       />
       {hint && (
         <p id={hintId} className="field__hint">

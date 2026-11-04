@@ -2,7 +2,7 @@
 
 HealthTrack is a web application where patients log symptoms, track how severity changes over time, and share their records with their doctors.
 
-The database schema and authentication are in place: users can register, log in, and log out. Symptom tracking and doctor sharing are not built yet. See [DECISIONS.md](DECISIONS.md) for the architecture and scope.
+Users can register, log in, and log out, and patients can log batches of symptom entries. Symptom history, charts, and doctor sharing are not built yet. See [DECISIONS.md](DECISIONS.md) for the architecture and scope.
 
 ## Prerequisites
 
@@ -125,6 +125,40 @@ Validation errors use one format:
   "errors": [{ "field": "password", "message": "String should have at least 8 characters" }]
 }
 ```
+
+### Symptoms
+
+`POST /api/symptoms/batch` saves 1–20 entries for the authenticated patient. It needs `Authorization: Bearer <token>`. The batch is all-or-nothing: if any entry is invalid, none are saved.
+
+```json
+{
+  "entries": [
+    { "symptom_name": "Headache", "occurred_on": "2026-03-09", "severity": 6, "notes": "After lunch" },
+    { "symptom_name": "Sore throat", "occurred_on": "2026-03-09", "severity": 3 }
+  ]
+}
+```
+
+| Status | Meaning |
+|---|---|
+| 201 | All entries saved; returns `{"entries": [...]}` with each entry's `id` and `created_at` |
+| 401 | Missing, invalid, or expired token |
+| 403 | The user is not a patient |
+| 422 | Validation failed; nothing was saved |
+
+Entry errors use zero-based indices, and every invalid entry is reported in one response:
+
+```json
+{
+  "detail": "Validation failed",
+  "errors": [
+    { "entry": 1, "field": "severity", "message": "Severity must be between 1 and 10" },
+    { "entry": 3, "field": "occurred_on", "message": "Date cannot be in the future" }
+  ]
+}
+```
+
+Errors about the batch as a whole, such as its size, have no `entry` key. The patient always comes from the token, and a request that supplies `patient_id` is rejected.
 
 ### Health
 

@@ -4,12 +4,19 @@ from fastapi import FastAPI, Request, Response, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.api.auth import router as auth_router
 from app.api.health import router as health_router
+from app.api.symptoms import router as symptoms_router
 from app.config import Settings, get_settings
 
 logger = logging.getLogger(__name__)
+
+
+def constraint_name(exc: SQLAlchemyError) -> str | None:
+    diagnostics = getattr(getattr(exc, "orig", None), "diag", None)
+    return getattr(diagnostics, "constraint_name", None)
 
 
 def format_validation_errors(exc: RequestValidationError) -> list[dict[str, str]]:
@@ -46,12 +53,22 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def handle_unexpected_errors(request: Request, call_next) -> Response:
         try:
             return await call_next(request)
+        except SQLAlchemyError as exc:
+            # No traceback: PostgreSQL error text can quote the failing row, and with it
+            # symptom names and notes. The constraint name is enough to investigate.
+            logger.error(
+                "Database error on %s %s: %s (constraint: %s)",
+                request.method,
+                request.url.path,
+                type(exc).__name__,
+                constraint_name(exc),
+            )
         except Exception:
             logger.exception("Unhandled error on %s %s", request.method, request.url.path)
-            return JSONResponse(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                content={"detail": "Internal server error"},
-            )
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"detail": "Internal server error"},
+        )
 
     app.add_middleware(
         CORSMiddleware,
@@ -62,4 +79,5 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(health_router, prefix="/api")
     app.include_router(auth_router, prefix="/api")
+    app.include_router(symptoms_router, prefix="/api")
     return app

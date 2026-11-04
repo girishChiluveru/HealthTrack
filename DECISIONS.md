@@ -152,6 +152,7 @@ The 404 applies whether or not the record exists, so responses do not reveal whi
 
 - A submission contains 1–20 entries.
 - It is all-or-nothing: entries are saved in one transaction, and one invalid entry means none are saved.
+- Unknown fields, including `patient_id`, are rejected. The patient always comes from the token.
 - All invalid entries are reported together, each identified by zero-based entry index and field:
 
 ```json

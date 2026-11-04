@@ -2,6 +2,7 @@ import { useAuth } from './auth/useAuth.js';
 import AccountPanel from './components/AccountPanel.jsx';
 import ApiStatus from './components/ApiStatus.jsx';
 import AuthPanel from './components/AuthPanel.jsx';
+import SymptomEntryForm from './components/SymptomEntryForm.jsx';
 
 export default function App() {
   const { user, isCheckingSession, notice, login, register, logout } = useAuth();
@@ -24,6 +25,9 @@ export default function App() {
         </p>
         {isCheckingSession && <p role="status">Checking your session…</p>}
         {!isCheckingSession && user && <AccountPanel user={user} />}
+        {!isCheckingSession && user?.role === 'patient' && (
+          <SymptomEntryForm timezone={user.timezone} />
+        )}
         {!isCheckingSession && !user && (
           <AuthPanel notice={notice} onLogin={login} onRegister={register} />
         )}
