@@ -27,7 +27,7 @@ function mapServerErrors(errors, submittedRows) {
   return { rowErrors, otherMessages };
 }
 
-export function useSymptomBatch(timezone) {
+export function useSymptomBatch(timezone, onSaved) {
   const [rows, setRows] = useState(() => [createRow(todayInTimezone(timezone))]);
   const [rowErrors, setRowErrors] = useState({});
   const [formError, setFormError] = useState('');
@@ -100,6 +100,7 @@ export function useSymptomBatch(timezone) {
       setSuccessMessage(
         entries.length === 1 ? 'Saved 1 entry.' : `Saved ${entries.length} entries.`,
       );
+      onSaved();
     } catch (error) {
       const { rowErrors: serverErrors, otherMessages } = mapServerErrors(
         error.errors ?? [],

@@ -41,6 +41,20 @@ def test_preflight_allows_authenticated_json_post(client: TestClient) -> None:
     assert response.headers["access-control-allow-origin"] == ALLOWED_ORIGIN
 
 
+@pytest.mark.parametrize("method", ["PATCH", "DELETE"])
+def test_preflight_allows_entry_changes(client: TestClient, method: str) -> None:
+    response = client.options(
+        "/api/symptoms/00000000-0000-0000-0000-000000000000",
+        headers={
+            "Origin": ALLOWED_ORIGIN,
+            "Access-Control-Request-Method": method,
+            "Access-Control-Request-Headers": "authorization, content-type",
+        },
+    )
+
+    assert response.status_code == 200
+
+
 def test_cors_origins_are_parsed_from_comma_separated_value() -> None:
     settings = build_settings(cors_origins="http://localhost:5173, https://app.example ,")
 

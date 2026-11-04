@@ -11,7 +11,7 @@ from app.api.deps import get_current_user
 from app.models import User, UserRole
 from app.schemas import SymptomEntryCreate
 from app.services import symptoms
-from app.services.symptoms import BatchValidationError, today_in_timezone, validate_batch
+from app.services.symptoms import SymptomValidationError, today_in_timezone, validate_batch
 from app.symptom_names import normalize_symptom_name, symptom_key
 
 TODAY = date(2026, 3, 10)
@@ -27,7 +27,7 @@ def without(field: str) -> dict:
 
 
 def errors_for(*raw_entries: object) -> list[dict]:
-    with pytest.raises(BatchValidationError) as caught:
+    with pytest.raises(SymptomValidationError) as caught:
         validate_batch(raw_entries, TODAY)
     return caught.value.errors
 

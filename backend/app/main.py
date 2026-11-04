@@ -10,6 +10,7 @@ from app.api.auth import router as auth_router
 from app.api.health import router as health_router
 from app.api.symptoms import router as symptoms_router
 from app.config import Settings, get_settings
+from app.log_filters import install_log_filters
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +24,7 @@ def format_validation_errors(exc: RequestValidationError) -> list[dict[str, str]
     """Build field errors. FastAPI's default echoes the input, which can be a password."""
     errors = []
     for error in exc.errors():
-        location = [str(part) for part in error["loc"] if part != "body"]
+        location = [str(part) for part in error["loc"] if part not in ("body", "query", "path")]
         errors.append(
             {
                 "field": ".".join(location) or "body",
@@ -35,6 +36,7 @@ def format_validation_errors(exc: RequestValidationError) -> list[dict[str, str]
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
+    install_log_filters()
     app = FastAPI(title="HealthTrack API")
     app.state.settings = settings
 
@@ -73,7 +75,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
-        allow_methods=["GET", "POST"],
+        allow_methods=["GET", "POST", "PATCH", "DELETE"],
         allow_headers=["Authorization", "Content-Type"],
     )
 

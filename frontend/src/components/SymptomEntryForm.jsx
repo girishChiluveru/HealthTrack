@@ -1,9 +1,10 @@
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
+import { useFocusFirstError } from '../symptoms/useFocusFirstError.js';
 import { useSymptomBatch } from '../symptoms/useSymptomBatch.js';
 import { MAX_ENTRIES, todayInTimezone } from '../symptoms/validation.js';
 import SymptomEntryRow from './SymptomEntryRow.jsx';
 
-export default function SymptomEntryForm({ timezone }) {
+export default function SymptomEntryForm({ timezone, onSaved }) {
   const {
     rows,
     rowErrors,
@@ -15,17 +16,13 @@ export default function SymptomEntryForm({ timezone }) {
     addRow,
     removeRow,
     submit,
-  } = useSymptomBatch(timezone);
+  } = useSymptomBatch(timezone, onSaved);
   const formRef = useRef(null);
   const today = todayInTimezone(timezone);
   const isFull = rows.length >= MAX_ENTRIES;
 
   // In a long batch the first invalid field can be off screen.
-  useEffect(() => {
-    if (errorFocusRequest > 0) {
-      formRef.current?.querySelector('[aria-invalid="true"]')?.focus();
-    }
-  }, [errorFocusRequest]);
+  useFocusFirstError(formRef, errorFocusRequest);
 
   function handleSubmit(event) {
     event.preventDefault();

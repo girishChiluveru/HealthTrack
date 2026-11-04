@@ -2,7 +2,7 @@
 
 HealthTrack is a web application where patients log symptoms, track how severity changes over time, and share their records with their doctors.
 
-Users can register, log in, and log out, and patients can log batches of symptom entries. Symptom history, charts, and doctor sharing are not built yet. See [DECISIONS.md](DECISIONS.md) for the architecture and scope.
+Users can register, log in, and log out. Patients can log batches of symptom entries, review, filter, edit, and delete them, and follow a symptom's severity on a chart. Doctor sharing is not built yet. See [DECISIONS.md](DECISIONS.md) for the architecture and scope.
 
 ## Prerequisites
 
@@ -128,7 +128,47 @@ Validation errors use one format:
 
 ### Symptoms
 
-`POST /api/symptoms/batch` saves 1–20 entries for the authenticated patient. It needs `Authorization: Bearer <token>`. The batch is all-or-nothing: if any entry is invalid, none are saved.
+All symptom routes need `Authorization: Bearer <token>` from a patient. They return 401 without a valid token and 403 for a doctor. Each route only ever reads or changes the authenticated patient's own entries, and another patient's entry returns the same 404 as one that does not exist.
+
+| Endpoint | Success | Failure |
+|---|---|---|
+| `GET /api/symptoms` | 200 `{"entries": [...]}`, newest occurrence first | 422 invalid filters |
+| `GET /api/symptoms/names` | 200 `{"symptoms": [{"key": "...", "name": "..."}]}`, most recently logged first | |
+| `GET /api/symptoms/trends` | 200 with daily maximums | 422 invalid filters or no `symptom` |
+| `POST /api/symptoms/batch` | 201 `{"entries": [...]}` | 422, and nothing is saved |
+| `PATCH /api/symptoms/{entry_id}` | 200 with the updated entry | 404 not found; 422, and nothing changes |
+| `DELETE /api/symptoms/{entry_id}` | 204 with no body | 404 not found |
+
+`GET /api/symptoms` and `GET /api/symptoms/trends` accept these query parameters:
+
+| Parameter | Meaning |
+|---|---|
+| `symptom` | Matches case and spacing variants. Optional for history, required for trends |
+| `start_date`, `end_date` | Optional and inclusive, in `YYYY-MM-DD` format |
+
+#### Trends
+
+`GET /api/symptoms/trends?symptom=headache&start_date=2026-01-01` returns one point per day that has entries, oldest first:
+
+```json
+{
+  "symptom_key": "headache",
+  "points": [
+    { "date": "2026-01-15", "max_severity": 8, "entry_count": 3 },
+    { "date": "2026-01-18", "max_severity": 4, "entry_count": 1 }
+  ]
+}
+```
+
+Days without entries have no point. The chart shows them as breaks in the line, so nothing is plotted for a day that was not logged.
+
+#### Editing
+
+`PATCH` accepts any of `symptom_name`, `occurred_on`, `severity`, and `notes`, using the same validation as new entries. Fields left out keep their values, and `"notes": null` clears the notes. Errors use the `field` and `message` format, without an `entry` key.
+
+#### Creating a batch
+
+`POST /api/symptoms/batch` saves 1–20 entries. The batch is all-or-nothing: if any entry is invalid, none are saved.
 
 ```json
 {
@@ -138,13 +178,6 @@ Validation errors use one format:
   ]
 }
 ```
-
-| Status | Meaning |
-|---|---|
-| 201 | All entries saved; returns `{"entries": [...]}` with each entry's `id` and `created_at` |
-| 401 | Missing, invalid, or expired token |
-| 403 | The user is not a patient |
-| 422 | Validation failed; nothing was saved |
 
 Entry errors use zero-based indices, and every invalid entry is reported in one response:
 

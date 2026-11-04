@@ -17,7 +17,7 @@ from pydantic import (
 )
 
 from app.models import UserRole
-from app.symptom_names import normalize_symptom_name
+from app.symptom_names import normalize_symptom_name, symptom_key
 
 DEFAULT_TIMEZONE = "Asia/Kolkata"
 PASSWORD_MIN_LENGTH = 8
@@ -51,6 +51,16 @@ def reject_unstorable_characters(value: str) -> str:
     if "\x00" in value:
         raise ValueError("Contains characters that cannot be stored")
     return value
+
+
+def parse_iso_date(value: Any) -> date:
+    """Accept only YYYY-MM-DD. Pydantic's own parsing also allows timestamps and datetimes."""
+    if not isinstance(value, str) or not ISO_DATE_PATTERN.fullmatch(value):
+        raise ValueError("Date must be in YYYY-MM-DD format")
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        raise ValueError("Date must be a real calendar date") from None
 
 
 class RegisterRequest(BaseModel):
@@ -136,12 +146,7 @@ class SymptomEntryCreate(BaseModel):
     def validate_occurred_on(cls, value: Any, info: ValidationInfo) -> date:
         if value is None:
             raise ValueError("Date is required")
-        if not isinstance(value, str) or not ISO_DATE_PATTERN.fullmatch(value):
-            raise ValueError("Date must be in YYYY-MM-DD format")
-        try:
-            occurred_on = date.fromisoformat(value)
-        except ValueError:
-            raise ValueError("Date must be a real calendar date") from None
+        occurred_on = parse_iso_date(value)
         if occurred_on > info.context["today"]:
             raise ValueError("Date cannot be in the future")
         return occurred_on
@@ -169,6 +174,18 @@ class SymptomEntryCreate(BaseModel):
         if len(notes) > NOTES_MAX_LENGTH:
             raise ValueError(f"Notes must be at most {NOTES_MAX_LENGTH} characters")
         return notes or None
+
+
+class SymptomEntryUpdate(SymptomEntryCreate):
+    """A partial edit, validated like a new entry. Inherits every field validator.
+
+    Fields left out keep their stored values, so callers must apply only `model_fields_set`.
+    An explicit null is rejected for required fields, and clears `notes`.
+    """
+
+    symptom_name: str | None = None
+    occurred_on: date | None = None
+    severity: int | None = None
 
 
 class SymptomBatchRequest(BaseModel):
@@ -208,5 +225,72 @@ class SymptomEntryResponse(BaseModel):
     created_at: datetime
 
 
-class SymptomBatchResponse(BaseModel):
+class SymptomEntryListResponse(BaseModel):
     entries: list[SymptomEntryResponse]
+
+
+class DateRangeFilters(BaseModel):
+    # Rejecting unknown parameters means a supplied patient_id fails loudly, not silently.
+    model_config = ConfigDict(extra="forbid")
+
+    start_date: date | None = None
+    end_date: date | None = None
+
+    @field_validator("start_date", "end_date", mode="before")
+    @classmethod
+    def validate_date_format(cls, value: Any) -> date | None:
+        return None if value is None else parse_iso_date(value)
+
+    @field_validator("end_date")
+    @classmethod
+    def validate_range_order(cls, value: date | None, info: ValidationInfo) -> date | None:
+        start_date = info.data.get("start_date")
+        if value and start_date and value < start_date:
+            raise ValueError("End date must be on or after the start date")
+        return value
+
+
+class SymptomHistoryFilters(DateRangeFilters):
+    symptom: str | None = None
+
+    @field_validator("symptom")
+    @classmethod
+    def normalize_symptom_filter(cls, value: str | None) -> str | None:
+        """Return the matching symptom key. A blank value means no filter."""
+        if value is None:
+            return None
+        return symptom_key(reject_unstorable_characters(value)) or None
+
+
+class SymptomTrendFilters(DateRangeFilters):
+    symptom: str
+
+    @field_validator("symptom")
+    @classmethod
+    def normalize_symptom_filter(cls, value: str) -> str:
+        key = symptom_key(reject_unstorable_characters(value))
+        if not key:
+            raise ValueError("Symptom is required")
+        return key
+
+
+class SymptomName(BaseModel):
+    key: str
+    name: str
+
+
+class SymptomNameListResponse(BaseModel):
+    symptoms: list[SymptomName]
+
+
+class TrendPoint(BaseModel):
+    date: date
+    max_severity: int
+    entry_count: int
+
+
+class SymptomTrendResponse(BaseModel):
+    """One point per day that has entries, oldest first. Days without entries are absent."""
+
+    symptom_key: str
+    points: list[TrendPoint]

@@ -12,13 +12,13 @@ HealthTrack is a web application where patients log their symptoms, track how se
 - Patients log 1–20 symptoms at a time, each with a name, date of occurrence, severity (1–10), and optional notes.
 - Invalid submissions (missing fields, future dates, out-of-range severity) are rejected with a specific error message.
 - Patients view their symptom history, with filters by symptom and date range.
+- Patients correct or delete their own entries. Deleting asks for confirmation and is permanent.
 - Patients see severity trends over time as a chart.
 - Patients grant doctors access to their records, and can revoke it.
 - Doctors view shared patients' records and trends (read-only).
 
 ### Out of scope for the initial version
 
-- Editing and deleting symptom entries (see [Open questions](#10-open-questions))
 - Account deletion and changing a stored timezone
 - Password reset and email verification
 - Comprehensive audit logging and login rate limiting
@@ -171,8 +171,16 @@ One shared function trims the symptom name and collapses repeated whitespace to 
 ### Charts
 
 - Multiple entries for the same symptom on the same day are allowed, and history shows all of them.
-- The chart plots one point per symptom per day, using the daily maximum severity.
-- Days with no entries are left as gaps, not plotted as zero.
+- The chart plots one point per symptom per day, using the daily maximum severity. PostgreSQL computes this, and the frontend does not aggregate.
+- Days with no entries are left as gaps, not plotted as zero. The API returns only days that have entries, so a long date range cannot produce a huge response, and the frontend breaks the line across skipped days.
+- The chart shows one symptom at a time: the filtered symptom, otherwise the patient's choice, otherwise the most recently logged one.
+
+### Editing and deleting
+
+- Only the owner can edit or delete an entry, and doctors stay read-only.
+- Edits use the same validation as new entries. Fields left out of a request keep their values, and an explicit null clears `notes` only.
+- Deleting removes the row. Edits keep no history, and there is no `updated_at` column because nothing uses it yet.
+- After any change, the frontend refetches history, symptom names, and the trend rather than patching local state, so the displayed values always come from the server.
 
 ### Dates
 
@@ -190,7 +198,7 @@ One shared function trims the symptom name and collapses repeated whitespace to 
 - **CORS:** Explicit origin allowlist from configuration; no wildcard.
 - **Environment variables:** `DATABASE_URL`, `JWT_SECRET`, `JWT_ALGORITHM`, and `CORS_ORIGINS` come from the environment. Real `.env` files are not committed; `.env.example` documents the names.
 - **Demo data:** Seed and demo data are synthetic only. Real health information must not be entered.
-- **Logs:** Logs exclude request bodies, symptom names, notes, passwords, and tokens.
+- **Logs:** Logs exclude request bodies, query strings, symptom names, notes, passwords, and tokens.
 - **Accepted trade-off:** Registration reports when an email is already in use, which reveals that the account exists.
 
 This is a prototype and is not presented as compliant with any health-data regulation.
@@ -199,7 +207,6 @@ This is a prototype and is not presented as compliant with any health-data regul
 
 The take-home brief is not in this repository, so these need checking against it:
 
-- **Editing and deleting entries:** Out of scope unless the brief requires them. If required, add owner-only update and delete routes and an `updated_at` column. Doctors stay read-only.
 - **Doctor access:** Included in the core here. Confirm that the brief requires it; if not, it could be reduced or moved to future enhancements.
 - **Hosted deployment:** Treated as optional. If the brief requires a live URL, deployment becomes part of the core.
 - **Security scope:** Password reset, email verification, and audit logging stay out of scope unless the brief requires them.
