@@ -1,15 +1,17 @@
+import { RefreshCw, UserRound, Users } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { fetchSharedPatients, sharedPatientSource } from '../api/doctor.js';
 import { useResource } from '../symptoms/useResource.js';
 import { useHashView } from '../useHashView.js';
 import AccountPanel from './AccountPanel.jsx';
 import AppShell from './AppShell.jsx';
+import Skeleton from './Skeleton.jsx';
 import SymptomOverview from './SymptomOverview.jsx';
 import SymptomRecords from './SymptomRecords.jsx';
 
 const NAV_ITEMS = [
-  { id: 'patients', label: 'Patients', icon: 'sharing', subtitle: 'Records patients have shared with you. These are read-only.' },
-  { id: 'account', label: 'Account', icon: 'account', subtitle: 'Your account details.' },
+  { id: 'patients', label: 'Patients', icon: Users, subtitle: 'Records patients have shared with you. These are read-only.' },
+  { id: 'account', label: 'Account', icon: UserRound, subtitle: 'Your account details.' },
 ];
 
 const VIEW_IDS = NAV_ITEMS.map(({ id }) => id);
@@ -33,21 +35,24 @@ export default function DoctorDashboard({ user, onLogout }) {
 
   return (
     <AppShell user={user} navItems={NAV_ITEMS} activeView={view} onLogout={onLogout}>
-      <div hidden={view !== 'account'}>
+      <div className="view" hidden={view !== 'account'}>
         <AccountPanel user={user} />
       </div>
-      <div hidden={view !== 'patients'}>
+      <div className="view" hidden={view !== 'patients'}>
         <section className="card" aria-labelledby="patients-heading" aria-busy={patients.isLoading}>
           <div className="record-header">
             <h2 id="patients-heading">Your patients</h2>
             <button type="button" className="button button--secondary" onClick={refresh}>
+              <RefreshCw size={16} aria-hidden="true" />
               Refresh
             </button>
           </div>
           <div role="status">
             {accessEnded && <p className="alert">Access to that patient’s records has ended.</p>}
-            {patients.isLoading && <p className="muted-text">Loading patients…</p>}
           </div>
+          {patients.isLoading && !list && (
+            <Skeleton label="Loading patients…" count={2} className="skeleton--row" />
+          )}
           {patients.error && (
             <div className="alert alert--error" role="alert">
               <p>We could not load your patients.</p>

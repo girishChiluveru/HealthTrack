@@ -1,7 +1,7 @@
+import { LogOut } from 'lucide-react';
 import { useRef } from 'react';
 import ApiStatus from './ApiStatus.jsx';
 import Brand from './Brand.jsx';
-import Icon from './Icon.jsx';
 
 const ROLE_LABELS = { patient: 'Patient', doctor: 'Doctor' };
 
@@ -23,7 +23,7 @@ export default function AppShell({ user, navItems, activeView, onLogout, childre
           <Brand />
           <nav className="sidebar__nav" aria-label="Main">
             <ul>
-              {navItems.map(({ id, label, icon }) => (
+              {navItems.map(({ id, label, icon: Glyph }) => (
                 <li key={id}>
                   <a
                     href={`#${id}`}
@@ -32,7 +32,7 @@ export default function AppShell({ user, navItems, activeView, onLogout, childre
                     // Keyboard and screen reader users continue from the new view.
                     onClick={focusMain}
                   >
-                    <Icon name={icon} />
+                    <Glyph size={20} aria-hidden="true" />
                     {label}
                   </a>
                 </li>
@@ -51,6 +51,7 @@ export default function AppShell({ user, navItems, activeView, onLogout, childre
           <div className="topbar__actions">
             <span className="role-chip">{ROLE_LABELS[user.role]}</span>
             <button type="button" className="button button--secondary" onClick={onLogout}>
+              <LogOut size={16} aria-hidden="true" />
               Log out
             </button>
           </div>

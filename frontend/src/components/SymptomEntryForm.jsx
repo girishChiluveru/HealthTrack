@@ -1,3 +1,4 @@
+import { Plus } from 'lucide-react';
 import { useRef } from 'react';
 import { useFocusFirstError } from '../symptoms/useFocusFirstError.js';
 import { useSymptomBatch } from '../symptoms/useSymptomBatch.js';
@@ -9,7 +10,6 @@ export default function SymptomEntryForm({ timezone, onSaved }) {
     rows,
     rowErrors,
     formError,
-    successMessage,
     isSubmitting,
     errorFocusRequest,
     updateRow,
@@ -53,6 +53,7 @@ export default function SymptomEntryForm({ timezone, onSaved }) {
             disabled={isFull}
             onClick={addRow}
           >
+            <Plus size={16} aria-hidden="true" />
             Add another entry
           </button>
           {isFull && <p className="field__hint">You can log up to {MAX_ENTRIES} entries at a time.</p>}
@@ -61,11 +62,6 @@ export default function SymptomEntryForm({ timezone, onSaved }) {
         {formError && (
           <p className="alert alert--error" role="alert">
             {formError}
-          </p>
-        )}
-        {successMessage && (
-          <p className="alert alert--success" role="status">
-            {successMessage}
           </p>
         )}
         <button type="submit" className="button" disabled={isSubmitting}>

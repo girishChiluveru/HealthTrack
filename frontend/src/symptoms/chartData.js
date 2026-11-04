@@ -23,3 +23,10 @@ export function chartDayRange(points, { startDate, endDate }) {
   // A single day still needs a visible axis, and edge markers need room.
   return { min: min - 1, max: max + 1 };
 }
+
+// One row per day that has an entry for at least one symptom, oldest first.
+export function toTableRows(series) {
+  const byDate = series.map(({ points }) => new Map(points.map((point) => [point.date, point])));
+  const dates = [...new Set(series.flatMap(({ points }) => points.map(({ date }) => date)))].sort();
+  return dates.map((date) => ({ date, cells: byDate.map((points) => points.get(date) ?? null) }));
+}

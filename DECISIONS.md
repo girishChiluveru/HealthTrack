@@ -36,7 +36,7 @@ These are not current implementation requirements.
 
 | Layer | Technology | Why |
 |---|---|---|
-| Frontend | React + JavaScript + Vite, Plus Jakarta Sans (self-hosted) | Component-based interactive UI, fast dev server and build. The font ships with the app, so no third party sees visits and the demo works offline |
+| Frontend | React + JavaScript + Vite, Plus Jakarta Sans (self-hosted), Lucide icons | Component-based interactive UI, fast dev server and build. The font ships with the app, so no third party sees visits and the demo works offline |
 | Backend | FastAPI + Python 3.12 + pydantic-settings | REST API, Pydantic validation, automatic API docs, validated configuration |
 | Database | PostgreSQL 16 + psycopg 3 | Relational data, foreign keys, constraints, trend queries |
 | ORM / migrations | SQLAlchemy 2.0 (synchronous) + Alembic | Typed models, versioned schema changes |
@@ -182,6 +182,8 @@ One shared function trims the symptom name and collapses repeated whitespace to 
 - Severity colors use display bands: 1–3 mild, 4–6 moderate, 7–10 severe. These are not clinical categories.
 - The interface is light only.
 - Each view is in the URL hash, so reloading and the Back button work. Filters stay out of the URL so symptom names do not reach browser history.
+- Components stay on the existing token-based CSS. shadcn/ui would need a Tailwind migration, and Motion adds nothing over CSS for short transitions, so dialogs use native `<dialog>` and selection controls use native radio buttons.
+- The all-symptoms chart draws up to six symptoms at a time, reusing the per-symptom trend endpoint. Six is the size of the color palette, which is validated across all pairs because any two lines can cross. Marker shapes differ too, so identity does not rest on color alone.
 
 ### Editing and deleting
 
@@ -205,7 +207,7 @@ One shared function trims the symptom name and collapses repeated whitespace to 
 - **Authentication and ownership:** See [Authentication](#5-authentication) and [Authorization](#6-authorization).
 - **CORS:** Explicit origin allowlist from configuration; no wildcard.
 - **Environment variables:** `DATABASE_URL`, `JWT_SECRET`, `JWT_ALGORITHM`, and `CORS_ORIGINS` come from the environment. Real `.env` files are not committed; `.env.example` documents the names.
-- **Demo data:** Seed and demo data are synthetic only. Real health information must not be entered.
+- **Demo data:** Seed and demo data are synthetic only. Real health information must not be entered. `python -m app.seed_demo` runs only on request and refuses non-local databases.
 - **Logs:** Logs exclude request bodies, query strings, symptom names, notes, passwords, and tokens.
 - **Accepted trade-off:** Registration reports when an email is already in use, which reveals that the account exists.
 

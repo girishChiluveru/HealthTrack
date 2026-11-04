@@ -2,7 +2,7 @@
 
 HealthTrack is a web application where patients log symptoms, track how severity changes over time, and share their records with their doctors.
 
-Users can register, log in, and log out. Patients can log batches of symptom entries, review, filter, edit, and delete them, and follow a symptom's severity on a chart. Patients can share their records with doctors, who get a read-only view, and can stop sharing at any time. See [DECISIONS.md](DECISIONS.md) for the architecture and scope.
+Users can register, log in, and log out. Patients can log batches of symptom entries, review, filter, edit, and delete them, and follow severity on a chart of one symptom or several together. Patients can share their records with doctors, who get a read-only view, and can stop sharing at any time. See [DECISIONS.md](DECISIONS.md) for the architecture and scope.
 
 ## Prerequisites
 
@@ -58,6 +58,26 @@ npm run dev
 ```
 
 Open <http://localhost:5173>. The status indicator should show "API is running", and you can create an account.
+
+## Demo data
+
+From `backend/`, with the virtual environment active and the migrations applied:
+
+```powershell
+python -m app.seed_demo
+```
+
+This loads about 30 days of fictional records, relative to today. Log in at <http://localhost:5173> with the password `demo-password-1`:
+
+| Account | Role | Shows |
+|---|---|---|
+| `mira.demo@example.com` | Patient | Seven symptoms with trends, days with no entry, several entries on one day, and an active share with the doctor below |
+| `dr.lena.demo@example.com` | Doctor | Read-only access to Mira's records |
+| `noah.demo@example.com` | Patient | A few entries shared with nobody, so the doctor cannot see them |
+
+Run it again whenever you like. Each run resets these three accounts, including any entries you changed, and creates no duplicates. Other accounts are left alone.
+
+The command only runs when you ask for it, and it refuses any database that is not on `localhost` or `127.0.0.1`. The accounts and password are public, so they must never reach a hosted environment.
 
 ## Migrations
 
@@ -160,7 +180,7 @@ All symptom routes need `Authorization: Bearer <token>` from a patient. They ret
 }
 ```
 
-Days without entries have no point. The chart shows them as breaks in the line, so nothing is plotted for a day that was not logged.
+Days without entries have no point. The chart shows them as breaks in the line, so nothing is plotted for a day that was not logged. The all-symptoms chart makes one of these requests per symptom it draws, up to six at a time.
 
 #### Editing
 

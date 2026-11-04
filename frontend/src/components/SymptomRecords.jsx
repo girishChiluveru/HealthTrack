@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { assignSymptomStyles } from '../symptoms/severity.js';
+import { useChartSelection } from '../symptoms/useChartSelection.js';
 import { useResource } from '../symptoms/useResource.js';
+import { useTrendSeries } from '../symptoms/useTrendSeries.js';
 import SeverityTrend from './SeverityTrend.jsx';
 import SymptomFilters from './SymptomFilters.jsx';
 import SymptomHistory from './SymptomHistory.jsx';
@@ -18,21 +21,22 @@ export default function SymptomRecords({
   source,
   revision,
   onRefresh,
-  notice,
   noEntriesText,
   noTrendText,
   headingRef,
   entryActions,
-  onFiltersChanged,
   onAccessLost,
 }) {
   // What the inputs show, and the last valid version of it that queries use.
   const [draftFilters, setDraftFilters] = useState(NO_FILTERS);
   const [filters, setFilters] = useState(NO_FILTERS);
+  const [chartMode, setChartMode] = useState('all');
   const [chartSymptom, setChartSymptom] = useState('');
 
   const names = useResource(source.fetchNames, revision);
   const symptoms = names.data?.symptoms ?? NO_SYMPTOMS;
+  const styles = useMemo(() => assignSymptomStyles(symptoms.map(({ key }) => key)), [symptoms]);
+  const { visibleKeys, toggle } = useChartSelection(symptoms);
 
   // An edit or delete can remove the filtered symptom, which would leave an empty view
   // with nothing selected. Keep the date filters and fall back to all symptoms.
@@ -41,21 +45,23 @@ export default function SymptomRecords({
   const symptomFilter = availableSymptom(filters.symptom);
   const { startDate, endDate } = filters;
 
-  const trendKey = symptomFilter || (isKnown(chartSymptom) ? chartSymptom : symptoms[0]?.key);
+  // Filtering to one symptom narrows the chart too. The chosen view returns when it is cleared.
+  const singleKey = symptomFilter || (isKnown(chartSymptom) ? chartSymptom : symptoms[0]?.key);
+  const showAll = chartMode === 'all' && !symptomFilter && symptoms.length > 1;
+  const chartKeys = useMemo(() => {
+    if (showAll) {
+      return visibleKeys;
+    }
+    return singleKey ? [singleKey] : NO_SYMPTOMS;
+  }, [showAll, visibleKeys, singleKey]);
 
   const loadHistory = useCallback(
     (signal) => source.fetchHistory({ symptom: symptomFilter, startDate, endDate }, signal),
     [source, symptomFilter, startDate, endDate],
   );
-  const loadTrend = useMemo(() => {
-    if (!trendKey) {
-      return null;
-    }
-    return (signal) => source.fetchTrend({ symptom: trendKey, startDate, endDate }, signal);
-  }, [source, trendKey, startDate, endDate]);
 
   const history = useResource(loadHistory, revision);
-  const trend = useResource(loadTrend, revision);
+  const trend = useTrendSeries(source, chartKeys, filters, revision);
 
   // Resources keep their last data after an error. When access has ended, that data must
   // stop being displayed, so a 404 hides the whole view straight away.
@@ -75,7 +81,6 @@ export default function SymptomRecords({
 
   function handleFilterChange(next) {
     setDraftFilters(next);
-    onFiltersChanged?.();
     if (!hasInvalidRange(next)) {
       setFilters(next);
     }
@@ -93,19 +98,23 @@ export default function SymptomRecords({
       <div className="records-grid">
         <SeverityTrend
           symptoms={symptoms}
-          selectedKey={trendKey}
-          showSelector={!symptomFilter}
+          isLoadingSymptoms={names.isLoading && !names.data}
+          styles={styles}
+          mode={showAll ? 'all' : 'single'}
+          isFiltered={Boolean(symptomFilter)}
+          selectedKey={singleKey}
+          chartKeys={chartKeys}
           trend={trend}
-          dateRange={{ startDate, endDate }}
           noTrendText={noTrendText}
+          onModeChange={setChartMode}
           onSelect={setChartSymptom}
+          onToggle={toggle}
           onRetry={onRefresh}
         />
         <SymptomHistory
           history={history}
           hasFilters={Boolean(symptomFilter || startDate || endDate)}
           noEntriesText={noEntriesText}
-          notice={notice}
           headingRef={headingRef}
           entryActions={entryActions}
           onRetry={onRefresh}

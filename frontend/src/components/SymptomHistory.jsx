@@ -1,10 +1,10 @@
 import HistoryEntry from './HistoryEntry.jsx';
+import Skeleton from './Skeleton.jsx';
 
 export default function SymptomHistory({
   history,
   hasFilters,
   noEntriesText,
-  notice,
   headingRef,
   entryActions,
   onRetry,
@@ -16,10 +16,9 @@ export default function SymptomHistory({
       <h2 id="history-heading" ref={headingRef} tabIndex={-1}>
         Symptom history
       </h2>
-      <div role="status">
-        {notice && <p className="alert alert--success">{notice}</p>}
-        {history.isLoading && <p className="muted-text">Loading history…</p>}
-      </div>
+      {history.isLoading && !entries && (
+        <Skeleton label="Loading history…" count={4} className="skeleton--row" />
+      )}
       {history.error && (
         <div className="alert alert--error" role="alert">
           <p>We could not load the history.</p>

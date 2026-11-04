@@ -1,3 +1,4 @@
+import { FilterX } from 'lucide-react';
 import FormField from './FormField.jsx';
 
 export default function SymptomFilters({ filters, symptoms, rangeError, onChange, onClear }) {
@@ -44,6 +45,7 @@ export default function SymptomFilters({ filters, symptoms, rangeError, onChange
         disabled={!hasFilters}
         onClick={onClear}
       >
+        <FilterX size={16} aria-hidden="true" />
         Clear filters
       </button>
     </section>

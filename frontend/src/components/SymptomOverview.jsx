@@ -1,8 +1,10 @@
+import { CalendarDays } from 'lucide-react';
 import { useCallback, useMemo } from 'react';
 import { addDays, formatDate, listDays } from '../symptoms/dates.js';
-import { symptomColor } from '../symptoms/severity.js';
+import { assignSymptomStyles } from '../symptoms/severity.js';
 import { useResource } from '../symptoms/useResource.js';
 import { todayInTimezone } from '../symptoms/validation.js';
+import Skeleton from './Skeleton.jsx';
 import SymptomPulse from './SymptomPulse.jsx';
 
 const WINDOW_DAYS = 14;
@@ -23,17 +25,16 @@ function changeSummary(points) {
 }
 
 function SymptomTile({ symptom }) {
-  const { key, name, points } = symptom;
-  const color = symptomColor(key);
+  const { name, points, color } = symptom;
   const change = changeSummary(points);
 
   return (
-    <article className="symptom-tile">
+    <article className="symptom-tile" style={{ '--symptom': color }}>
       <h3 className="symptom-tile__name">{name}</h3>
-      <span className="symptom-tile__initial" style={{ color }} aria-hidden="true">
+      <span className="symptom-tile__initial" aria-hidden="true">
         {name[0].toUpperCase()}
       </span>
-      <p className="symptom-tile__value" style={{ color }}>
+      <p className="symptom-tile__value">
         {points.at(-1).max_severity}
         <span className="symptom-tile__scale">/10</span>
       </p>
@@ -53,6 +54,8 @@ export default function SymptomOverview({ source, revision, timezone, onLogSympt
   const load = useCallback(
     async (signal) => {
       const { symptoms } = await source.fetchNames(signal);
+      // Styled from the full list, so a symptom has the same color here and on the chart.
+      const styles = assignSymptomStyles(symptoms.map(({ key }) => key));
       const recent = symptoms.slice(0, MAX_SYMPTOMS);
       const trends = await Promise.all(
         recent.map(({ key }) =>
@@ -60,7 +63,11 @@ export default function SymptomOverview({ source, revision, timezone, onLogSympt
         ),
       );
       return recent
-        .map((symptom, index) => ({ ...symptom, points: trends[index].points }))
+        .map((symptom, index) => ({
+          ...symptom,
+          points: trends[index].points,
+          color: styles.get(symptom.key).color,
+        }))
         .filter(({ points }) => points.length > 0);
     },
     [source, startDate, today],
@@ -80,9 +87,20 @@ export default function SymptomOverview({ source, revision, timezone, onLogSympt
       <section className="card" aria-labelledby="summary-heading" aria-busy={overview.isLoading}>
         <div className="card__header">
           <h2 id="summary-heading">Latest summary</h2>
-          <span className="date-chip">{formatDate(today)}</span>
+          <span className="date-chip">
+            <CalendarDays size={16} aria-hidden="true" />
+            {formatDate(today)}
+          </span>
         </div>
         <p className="card__intro">Each symptom’s most recent daily severity.</p>
+        {overview.isLoading && !symptoms && (
+          <Skeleton
+            label="Loading summary…"
+            count={4}
+            className="skeleton--tile"
+            groupClassName="symptom-tiles"
+          />
+        )}
         {overview.error && (
           <div className="alert alert--error" role="alert">
             <p>The summary could not be loaded.</p>
@@ -113,6 +131,11 @@ export default function SymptomOverview({ source, revision, timezone, onLogSympt
           </div>
         )}
       </section>
+      {overview.isLoading && !symptoms && (
+        <section className="card" aria-hidden="true">
+          <div className="skeleton skeleton--panel" />
+        </section>
+      )}
       {symptoms?.length > 0 && <SymptomPulse symptoms={symptoms} dates={dates} />}
     </div>
   );

@@ -1,5 +1,7 @@
 import { useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { revokeGrant } from '../api/sharing.js';
+import ConfirmDialog from './ConfirmDialog.jsx';
 
 export default function SharedDoctorItem({ grant, onRevoked, onMissing }) {
   const [isConfirming, setIsConfirming] = useState(false);
@@ -7,6 +9,11 @@ export default function SharedDoctorItem({ grant, onRevoked, onMissing }) {
   const [error, setError] = useState('');
   const revokeInFlight = useRef(false);
   const { name, email } = grant.doctor;
+
+  function closeDialog() {
+    setError('');
+    setIsConfirming(false);
+  }
 
   async function confirmRevoke() {
     if (revokeInFlight.current) {
@@ -17,9 +24,12 @@ export default function SharedDoctorItem({ grant, onRevoked, onMissing }) {
     setError('');
     try {
       await revokeGrant(grant.id);
+      // A modal dialog blocks focus elsewhere, so it must close before the parent moves focus.
+      flushSync(closeDialog);
       onRevoked(grant);
     } catch (revokeError) {
       if (revokeError.status === 404) {
+        flushSync(closeDialog);
         onMissing();
       } else {
         setError(revokeError.message);
@@ -36,47 +46,27 @@ export default function SharedDoctorItem({ grant, onRevoked, onMissing }) {
         <p className="people-list__name">{name}</p>
         <p className="people-list__detail">{email}</p>
       </div>
-      {isConfirming ? (
-        <div className="people-list__confirm" role="group" aria-label={`Stop sharing with ${name}`}>
-          <p>Stop sharing your records with {name}?</p>
-          {error && (
-            <p className="alert alert--error" role="alert">
-              {error}
-            </p>
-          )}
-          <div className="action-row">
-            <button
-              type="button"
-              className="button button--danger"
-              disabled={isRevoking}
-              onClick={confirmRevoke}
-            >
-              {isRevoking ? 'Stopping…' : 'Stop sharing'}
-            </button>
-            <button
-              type="button"
-              className="button button--secondary"
-              disabled={isRevoking}
-              // Focus starts here, so pressing Enter by accident does not end access.
-              autoFocus
-              onClick={() => {
-                setError('');
-                setIsConfirming(false);
-              }}
-            >
-              Keep sharing
-            </button>
-          </div>
-        </div>
-      ) : (
-        <button
-          type="button"
-          className="link-button"
-          aria-label={`Stop sharing with ${name}`}
-          onClick={() => setIsConfirming(true)}
+      <button
+        type="button"
+        className="link-button"
+        aria-label={`Stop sharing with ${name}`}
+        onClick={() => setIsConfirming(true)}
+      >
+        Stop sharing
+      </button>
+      {isConfirming && (
+        <ConfirmDialog
+          title={`Stop sharing with ${name}?`}
+          confirmLabel="Stop sharing"
+          busyLabel="Stopping…"
+          cancelLabel="Keep sharing"
+          isBusy={isRevoking}
+          error={error}
+          onConfirm={confirmRevoke}
+          onCancel={closeDialog}
         >
-          Stop sharing
-        </button>
+          <p>They will lose access to your records straight away.</p>
+        </ConfirmDialog>
       )}
     </li>
   );

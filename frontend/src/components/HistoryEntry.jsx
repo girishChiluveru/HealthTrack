@@ -1,8 +1,12 @@
+import { CalendarDays, Pencil, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { deleteSymptomEntry } from '../api/symptoms.js';
 import { formatDate } from '../symptoms/dates.js';
 import { severityBand } from '../symptoms/severity.js';
+import ConfirmDialog from './ConfirmDialog.jsx';
 import EntryEditForm from './EntryEditForm.jsx';
+import IconButton from './IconButton.jsx';
 
 // Without actions the entry is read-only, as it is for doctors.
 export default function HistoryEntry({ entry, actions }) {
@@ -12,19 +16,23 @@ export default function HistoryEntry({ entry, actions }) {
   const [isDeleting, setIsDeleting] = useState(false);
   const deleteInFlight = useRef(false);
   const editButton = useRef(null);
-  const deleteButton = useRef(null);
-  const focusTarget = useRef(null);
+  const shouldRestoreFocus = useRef(false);
+  const date = formatDate(entry.occurred_on);
 
-  // Editing and confirming replace the buttons, so focus has to be put back afterwards.
+  // Editing replaces the buttons, so focus has to be put back afterwards.
   useEffect(() => {
-    if (mode === 'view' && focusTarget.current) {
-      focusTarget.current.current?.focus();
-      focusTarget.current = null;
+    if (mode === 'view' && shouldRestoreFocus.current) {
+      editButton.current?.focus();
+      shouldRestoreFocus.current = false;
     }
   }, [mode]);
 
-  function returnToView(button) {
-    focusTarget.current = button;
+  function leaveEditing() {
+    shouldRestoreFocus.current = true;
+    setMode('view');
+  }
+
+  function closeDialog() {
     setDeleteError('');
     setMode('view');
   }
@@ -38,9 +46,12 @@ export default function HistoryEntry({ entry, actions }) {
     setDeleteError('');
     try {
       await deleteSymptomEntry(entry.id);
+      // A modal dialog blocks focus elsewhere, so it must close before the parent moves focus.
+      flushSync(closeDialog);
       onDeleted();
     } catch (error) {
       if (error.status === 404) {
+        flushSync(closeDialog);
         onMissing();
       } else {
         setDeleteError(error.message);
@@ -58,11 +69,11 @@ export default function HistoryEntry({ entry, actions }) {
           entry={entry}
           timezone={timezone}
           onSaved={() => {
-            returnToView(editButton);
+            leaveEditing();
             onEdited();
           }}
           onMissing={onMissing}
-          onCancel={() => returnToView(editButton)}
+          onCancel={leaveEditing}
         />
       </li>
     );
@@ -78,60 +89,45 @@ export default function HistoryEntry({ entry, actions }) {
           Severity {entry.severity}/10
         </span>
       </div>
-      <p className="history-entry__date">{formatDate(entry.occurred_on)}</p>
+      <div className="history-entry__meta">
+        <p className="history-entry__date">
+          <CalendarDays size={15} aria-hidden="true" />
+          {date}
+        </p>
+        {actions && (
+          <div className="history-entry__actions">
+            <IconButton
+              ref={editButton}
+              label={`Edit ${entry.symptom_name}, ${date}`}
+              icon={Pencil}
+              onClick={() => setMode('edit')}
+            />
+            <IconButton
+              label={`Delete ${entry.symptom_name}, ${date}`}
+              icon={Trash2}
+              danger
+              onClick={() => setMode('confirm-delete')}
+            />
+          </div>
+        )}
+      </div>
       {entry.notes && <p className="history-entry__notes">{entry.notes}</p>}
 
-      {actions && mode === 'confirm-delete' && (
-        <div className="history-entry__confirm" role="group" aria-label="Confirm deletion">
-          <p>Delete this entry? This cannot be undone.</p>
-          {deleteError && (
-            <p className="alert alert--error" role="alert">
-              {deleteError}
-            </p>
-          )}
-          <div className="action-row">
-            <button
-              type="button"
-              className="button button--danger"
-              disabled={isDeleting}
-              onClick={confirmDelete}
-            >
-              {isDeleting ? 'Deleting…' : 'Delete entry'}
-            </button>
-            <button
-              type="button"
-              className="button button--secondary"
-              disabled={isDeleting}
-              // Focus starts here, so pressing Enter by accident does not delete.
-              autoFocus
-              onClick={() => returnToView(deleteButton)}
-            >
-              Keep entry
-            </button>
-          </div>
-        </div>
-      )}
-      {actions && mode !== 'confirm-delete' && (
-        <div className="action-row">
-          <button
-            ref={editButton}
-            type="button"
-            className="link-button"
-            aria-label={`Edit ${entry.symptom_name}, ${formatDate(entry.occurred_on)}`}
-            onClick={() => setMode('edit')}
-          >
-            Edit
-          </button>
-          <button
-            ref={deleteButton}
-            type="button"
-            className="link-button"
-            aria-label={`Delete ${entry.symptom_name}, ${formatDate(entry.occurred_on)}`}
-            onClick={() => setMode('confirm-delete')}
-          >
-            Delete
-          </button>
-        </div>
+      {mode === 'confirm-delete' && (
+        <ConfirmDialog
+          title="Delete this entry?"
+          confirmLabel="Delete entry"
+          busyLabel="Deleting…"
+          cancelLabel="Keep entry"
+          isBusy={isDeleting}
+          error={deleteError}
+          onConfirm={confirmDelete}
+          onCancel={closeDialog}
+        >
+          <p>
+            {entry.symptom_name}, severity {entry.severity}/10, on {date}. This cannot be undone.
+          </p>
+        </ConfirmDialog>
       )}
     </li>
   );

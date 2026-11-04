@@ -31,7 +31,6 @@ export function useSymptomBatch(timezone, onSaved) {
   const [rows, setRows] = useState(() => [createRow(todayInTimezone(timezone))]);
   const [rowErrors, setRowErrors] = useState({});
   const [formError, setFormError] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   // Increments whenever new field errors appear, so the form can move focus to them.
   const [errorFocusRequest, setErrorFocusRequest] = useState(0);
@@ -50,14 +49,12 @@ export function useSymptomBatch(timezone, onSaved) {
       delete remaining[field];
       return { ...current, [id]: remaining };
     });
-    setSuccessMessage('');
   }
 
   function addRow() {
     setRows((current) =>
       current.length < MAX_ENTRIES ? [...current, createRow(todayInTimezone(timezone))] : current,
     );
-    setSuccessMessage('');
   }
 
   function removeRow(id) {
@@ -67,7 +64,6 @@ export function useSymptomBatch(timezone, onSaved) {
       delete remaining[id];
       return remaining;
     });
-    setSuccessMessage('');
   }
 
   async function submit() {
@@ -76,7 +72,6 @@ export function useSymptomBatch(timezone, onSaved) {
     }
 
     setFormError('');
-    setSuccessMessage('');
 
     const today = todayInTimezone(timezone);
     const localErrors = Object.fromEntries(
@@ -97,10 +92,7 @@ export function useSymptomBatch(timezone, onSaved) {
     try {
       const { entries } = await createSymptomBatch(submittedRows.map(toEntryPayload));
       setRows([createRow(today)]);
-      setSuccessMessage(
-        entries.length === 1 ? 'Saved 1 entry.' : `Saved ${entries.length} entries.`,
-      );
-      onSaved();
+      onSaved(entries.length);
     } catch (error) {
       const { rowErrors: serverErrors, otherMessages } = mapServerErrors(
         error.errors ?? [],
@@ -122,7 +114,6 @@ export function useSymptomBatch(timezone, onSaved) {
     rows,
     rowErrors,
     formError,
-    successMessage,
     isSubmitting,
     errorFocusRequest,
     updateRow,

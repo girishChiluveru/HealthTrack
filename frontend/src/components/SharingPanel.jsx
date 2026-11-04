@@ -1,12 +1,13 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { fetchGrants } from '../api/sharing.js';
 import { useResource } from '../symptoms/useResource.js';
 import ShareWithDoctorForm from './ShareWithDoctorForm.jsx';
 import SharedDoctorItem from './SharedDoctorItem.jsx';
+import Skeleton from './Skeleton.jsx';
 
-export default function SharingPanel() {
+export default function SharingPanel({ onNotify }) {
   const [revision, setRevision] = useState(0);
-  const [notice, setNotice] = useState('');
+  const heading = useRef(null);
   const grants = useResource(fetchGrants, revision);
   const list = grants.data?.grants;
 
@@ -14,7 +15,7 @@ export default function SharingPanel() {
 
   function handleShared(grant) {
     const alreadyShared = list?.some(({ id }) => id === grant.id);
-    setNotice(
+    onNotify(
       alreadyShared
         ? `${grant.doctor.name} already has access to your records.`
         : `Your records are now shared with ${grant.doctor.name}.`,
@@ -23,23 +24,34 @@ export default function SharingPanel() {
   }
 
   function handleRevoked(grant) {
-    setNotice(`${grant.doctor.name} can no longer see your records.`);
+    onNotify(`${grant.doctor.name} can no longer see your records.`);
     refresh();
+    // The focused button is about to disappear with its doctor.
+    heading.current?.focus();
   }
 
   function handleMissing() {
-    setNotice('That access had already ended, so the list has been refreshed.');
+    onNotify('That access had already ended, so the list has been refreshed.');
     refresh();
+    heading.current?.focus();
   }
 
   return (
-    <section className="card narrow-panel" aria-labelledby="sharing-heading" aria-busy={grants.isLoading}>
-      <h2 id="sharing-heading">Share with a doctor</h2>
+    <section
+      className="card narrow-panel"
+      aria-labelledby="sharing-heading"
+      aria-busy={grants.isLoading}
+    >
+      <h2 id="sharing-heading" ref={heading} tabIndex={-1}>
+        Share with a doctor
+      </h2>
       <p className="muted-text">
         A doctor you share with can see all of your entries, past and future, until you stop
         sharing. They cannot change anything.
       </p>
-      <div role="status">{notice && <p className="alert alert--success">{notice}</p>}</div>
+      {grants.isLoading && !list && (
+        <Skeleton label="Loading doctors…" className="skeleton--row" />
+      )}
       {grants.error && (
         <div className="alert alert--error" role="alert">
           <p>We could not load the doctors you share with.</p>
@@ -63,7 +75,7 @@ export default function SharingPanel() {
           ))}
         </ul>
       )}
-      <ShareWithDoctorForm onShared={handleShared} onStarted={() => setNotice('')} />
+      <ShareWithDoctorForm onShared={handleShared} />
     </section>
   );
 }

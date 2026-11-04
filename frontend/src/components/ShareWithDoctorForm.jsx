@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { createGrant, lookUpDoctor } from '../api/sharing.js';
 import FormField from './FormField.jsx';
 
-export default function ShareWithDoctorForm({ onShared, onStarted }) {
+export default function ShareWithDoctorForm({ onShared }) {
   const [email, setEmail] = useState('');
   const [doctor, setDoctor] = useState(null);
   const [error, setError] = useState('');
@@ -16,7 +16,6 @@ export default function ShareWithDoctorForm({ onShared, onStarted }) {
     requestInFlight.current = true;
     setIsWorking(true);
     setError('');
-    onStarted();
     try {
       await action();
     } catch (requestError) {
