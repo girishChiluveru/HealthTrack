@@ -7,6 +7,7 @@ export default function SeverityTrend({
   showSelector,
   trend,
   dateRange,
+  noTrendText,
   onSelect,
   onRetry,
 }) {
@@ -18,7 +19,7 @@ export default function SeverityTrend({
     <section className="card" aria-labelledby="trend-heading" aria-busy={trend.isLoading}>
       <h2 id="trend-heading">Severity over time</h2>
       {symptoms.length === 0 ? (
-        <p className="muted-text">Log a symptom to see its trend here.</p>
+        <p className="muted-text">{noTrendText}</p>
       ) : (
         <>
           {showSelector && (

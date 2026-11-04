@@ -1,20 +1,12 @@
 import HistoryEntry from './HistoryEntry.jsx';
 
-function emptyMessage(hasFilters) {
-  return hasFilters
-    ? 'No entries match these filters.'
-    : 'No entries yet. Log a symptom above to get started.';
-}
-
 export default function SymptomHistory({
   history,
   hasFilters,
+  noEntriesText,
   notice,
   headingRef,
-  timezone,
-  onEdited,
-  onDeleted,
-  onMissing,
+  entryActions,
   onRetry,
 }) {
   const entries = history.data?.entries;
@@ -30,26 +22,21 @@ export default function SymptomHistory({
       </div>
       {history.error && (
         <div className="alert alert--error" role="alert">
-          <p>We could not load your history.</p>
+          <p>We could not load the history.</p>
           <button type="button" className="link-button" onClick={onRetry}>
             Try again
           </button>
         </div>
       )}
       {entries?.length === 0 && !history.isLoading && (
-        <p className="muted-text">{emptyMessage(hasFilters)}</p>
+        <p className="muted-text">
+          {hasFilters ? 'No entries match these filters.' : noEntriesText}
+        </p>
       )}
       {entries?.length > 0 && (
         <ul className="history-list">
           {entries.map((entry) => (
-            <HistoryEntry
-              key={entry.id}
-              entry={entry}
-              timezone={timezone}
-              onEdited={onEdited}
-              onDeleted={onDeleted}
-              onMissing={onMissing}
-            />
+            <HistoryEntry key={entry.id} entry={entry} actions={entryActions} />
           ))}
         </ul>
       )}

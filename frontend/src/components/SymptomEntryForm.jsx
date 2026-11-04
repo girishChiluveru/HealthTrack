@@ -30,7 +30,7 @@ export default function SymptomEntryForm({ timezone, onSaved }) {
   }
 
   return (
-    <section className="card" aria-labelledby="log-symptoms-heading">
+    <section className="card log-panel" aria-labelledby="log-symptoms-heading">
       <h2 id="log-symptoms-heading">Log symptoms</h2>
       <form ref={formRef} className="entry-form" onSubmit={handleSubmit} noValidate>
         <fieldset className="entry-form__rows" disabled={isSubmitting}>

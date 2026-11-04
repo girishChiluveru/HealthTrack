@@ -1,6 +1,7 @@
 import { apiRequest } from './client.js';
 
-function toQuery(params) {
+export function toFilterQuery({ symptom, startDate, endDate }) {
+  const params = { symptom, start_date: startDate, end_date: endDate };
   const present = Object.entries(params).filter(([, value]) => value);
   return present.length ? `?${new URLSearchParams(present)}` : '';
 }
@@ -9,19 +10,13 @@ export function createSymptomBatch(entries) {
   return apiRequest('/api/symptoms/batch', { method: 'POST', body: { entries } });
 }
 
-export function fetchSymptomHistory({ symptom, startDate, endDate }, signal) {
-  const query = toQuery({ symptom, start_date: startDate, end_date: endDate });
-  return apiRequest(`/api/symptoms${query}`, { signal });
-}
-
-export function fetchSymptomNames(signal) {
-  return apiRequest('/api/symptoms/names', { signal });
-}
-
-export function fetchSymptomTrend({ symptom, startDate, endDate }, signal) {
-  const query = toQuery({ symptom, start_date: startDate, end_date: endDate });
-  return apiRequest(`/api/symptoms/trends${query}`, { signal });
-}
+export const ownRecordSource = {
+  fetchHistory: (filters, signal) =>
+    apiRequest(`/api/symptoms${toFilterQuery(filters)}`, { signal }),
+  fetchNames: (signal) => apiRequest('/api/symptoms/names', { signal }),
+  fetchTrend: (filters, signal) =>
+    apiRequest(`/api/symptoms/trends${toFilterQuery(filters)}`, { signal }),
+};
 
 export function updateSymptomEntry(id, changes) {
   return apiRequest(`/api/symptoms/${id}`, { method: 'PATCH', body: changes });

@@ -24,6 +24,7 @@ export default function LoginForm({ onLogin }) {
         type="email"
         name="email"
         autoComplete="email"
+        spellCheck={false}
         required
         value={email}
         onChange={(event) => setEmail(event.target.value)}

@@ -2,7 +2,7 @@
 
 HealthTrack is a web application where patients log symptoms, track how severity changes over time, and share their records with their doctors.
 
-Users can register, log in, and log out. Patients can log batches of symptom entries, review, filter, edit, and delete them, and follow a symptom's severity on a chart. Doctor sharing is not built yet. See [DECISIONS.md](DECISIONS.md) for the architecture and scope.
+Users can register, log in, and log out. Patients can log batches of symptom entries, review, filter, edit, and delete them, and follow a symptom's severity on a chart. Patients can share their records with doctors, who get a read-only view, and can stop sharing at any time. See [DECISIONS.md](DECISIONS.md) for the architecture and scope.
 
 ## Prerequisites
 
@@ -192,6 +192,32 @@ Entry errors use zero-based indices, and every invalid entry is reported in one 
 ```
 
 Errors about the batch as a whole, such as its size, have no `entry` key. The patient always comes from the token, and a request that supplies `patient_id` is rejected.
+
+### Sharing (patients)
+
+These routes need a patient token. Doctors get 403.
+
+| Endpoint | Success | Failure |
+|---|---|---|
+| `POST /api/sharing/lookup` with `{"email": "..."}` | 200 `{"name": "...", "email": "..."}` | 404 no doctor account; 422 invalid email |
+| `GET /api/sharing/grants` | 200 `{"grants": [...]}`, active grants only | |
+| `POST /api/sharing/grants` with `{"email": "..."}` | 201 new grant, or 200 with the existing active grant | 404 no doctor account; 422 invalid email |
+| `DELETE /api/sharing/grants/{grant_id}` | 204 with no body | 404 not found or already revoked |
+
+An unknown email and a patient's email get the same 404. Sharing again after revoking creates a new grant and keeps the old row.
+
+### Doctor views
+
+These routes need a doctor token and are all read-only. Patients get 403.
+
+| Endpoint | Success |
+|---|---|
+| `GET /api/doctor/patients` | 200 `{"patients": [...]}`, patients currently sharing with this doctor |
+| `GET /api/doctor/patients/{patient_id}/symptoms` | Same as `GET /api/symptoms` |
+| `GET /api/doctor/patients/{patient_id}/symptoms/names` | Same as `GET /api/symptoms/names` |
+| `GET /api/doctor/patients/{patient_id}/symptoms/trends` | Same as `GET /api/symptoms/trends` |
+
+The active grant is checked on every request, so a revocation applies immediately, even to tokens already issued. Without an active grant, these routes return the same 404 as a patient who does not exist.
 
 ### Health
 

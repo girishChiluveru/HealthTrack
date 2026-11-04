@@ -294,3 +294,39 @@ class SymptomTrendResponse(BaseModel):
 
     symptom_key: str
     points: list[TrendPoint]
+
+
+class DoctorEmailRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    email: NormalizedEmail
+
+
+class DoctorSummary(BaseModel):
+    """What a patient sees before and after sharing. Doctors' names are self-declared."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    name: str
+    email: str
+
+
+class AccessGrantResponse(BaseModel):
+    id: uuid.UUID
+    doctor: DoctorSummary
+    granted_at: datetime
+
+
+class AccessGrantListResponse(BaseModel):
+    grants: list[AccessGrantResponse]
+
+
+class SharedPatient(BaseModel):
+    id: uuid.UUID
+    name: str
+    email: str
+    granted_at: datetime
+
+
+class SharedPatientListResponse(BaseModel):
+    patients: list[SharedPatient]

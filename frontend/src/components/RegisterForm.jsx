@@ -43,6 +43,7 @@ export default function RegisterForm({ onRegister }) {
         type="email"
         name="email"
         autoComplete="email"
+        spellCheck={false}
         required
         value={values.email}
         onChange={handleChange}

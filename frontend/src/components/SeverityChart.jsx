@@ -9,11 +9,23 @@ import {
 import { Line } from 'react-chartjs-2';
 import { chartDayRange, toChartPoints } from '../symptoms/chartData.js';
 import { formatDate, formatEpochDay } from '../symptoms/dates.js';
-import { useChartTheme } from '../symptoms/useChartTheme.js';
 
 ChartJS.register(LinearScale, LineController, LineElement, PointElement, Tooltip);
 
 const DAYS_PER_YEAR = 365;
+
+// Canvas drawing cannot use CSS variables, so the values are read from the stylesheet.
+function readChartTheme() {
+  const styles = getComputedStyle(document.documentElement);
+  const token = (name) => styles.getPropertyValue(name).trim();
+  return {
+    line: token('--chart-line'),
+    grid: token('--color-border'),
+    muted: token('--color-muted'),
+    surface: token('--color-surface'),
+    text: token('--color-ink'),
+  };
+}
 
 function buildOptions(points, dateRange, theme) {
   const { min, max } = chartDayRange(points, dateRange);
@@ -105,7 +117,7 @@ function describe(points, symptomName) {
 }
 
 export default function SeverityChart({ points, symptomName, dateRange }) {
-  const theme = useChartTheme();
+  const theme = readChartTheme();
 
   return (
     <>

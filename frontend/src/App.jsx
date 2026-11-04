@@ -1,42 +1,24 @@
 import { useAuth } from './auth/useAuth.js';
-import AccountPanel from './components/AccountPanel.jsx';
-import ApiStatus from './components/ApiStatus.jsx';
-import AuthPanel from './components/AuthPanel.jsx';
+import AuthScreen from './components/AuthScreen.jsx';
+import DoctorDashboard from './components/DoctorDashboard.jsx';
 import SymptomDashboard from './components/SymptomDashboard.jsx';
 
 export default function App() {
   const { user, isCheckingSession, notice, login, register, logout } = useAuth();
 
-  return (
-    <div className="page">
-      <header className="site-header">
-        <span className="brand">HealthTrack</span>
-        {user && (
-          <button type="button" className="button button--secondary" onClick={logout}>
-            Log out
-          </button>
-        )}
-      </header>
-
-      <main className="hero">
-        <h1>Understand how your symptoms change over time</h1>
-        <p className="lead">
-          Log your symptoms, follow their severity, and share your records with your doctor.
-        </p>
-        {isCheckingSession && <p role="status">Checking your session…</p>}
-        {!isCheckingSession && user && <AccountPanel user={user} />}
-        {!isCheckingSession && user?.role === 'patient' && (
-          <SymptomDashboard timezone={user.timezone} />
-        )}
-        {!isCheckingSession && !user && (
-          <AuthPanel notice={notice} onLogin={login} onRegister={register} />
-        )}
-        <ApiStatus />
-      </main>
-
-      <footer className="site-footer">
-        <p>Prototype. Please do not enter real health information.</p>
-      </footer>
-    </div>
+  if (isCheckingSession) {
+    return (
+      <p className="loading-screen" role="status">
+        Checking your session…
+      </p>
+    );
+  }
+  if (!user) {
+    return <AuthScreen notice={notice} onLogin={login} onRegister={register} />;
+  }
+  return user.role === 'patient' ? (
+    <SymptomDashboard user={user} onLogout={logout} />
+  ) : (
+    <DoctorDashboard user={user} onLogout={logout} />
   );
 }

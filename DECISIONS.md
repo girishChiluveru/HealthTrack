@@ -36,7 +36,7 @@ These are not current implementation requirements.
 
 | Layer | Technology | Why |
 |---|---|---|
-| Frontend | React + JavaScript + Vite | Component-based interactive UI, fast dev server and build |
+| Frontend | React + JavaScript + Vite, Plus Jakarta Sans (self-hosted) | Component-based interactive UI, fast dev server and build. The font ships with the app, so no third party sees visits and the demo works offline |
 | Backend | FastAPI + Python 3.12 + pydantic-settings | REST API, Pydantic validation, automatic API docs, validated configuration |
 | Database | PostgreSQL 16 + psycopg 3 | Relational data, foreign keys, constraints, trend queries |
 | ORM / migrations | SQLAlchemy 2.0 (synchronous) + Alembic | Typed models, versioned schema changes |
@@ -143,6 +143,7 @@ The 404 applies whether or not the record exists, so responses do not reveal whi
 4. The doctor can see all of the patient's entries, past and future, while the grant is active.
 5. The patient can revoke access at any time. It takes effect on the doctor's next request.
 6. The patient can grant access again later, which creates a new row.
+7. Doctors see the patient's name and email, and their records read-only. Records already on a doctor's screen stay there until their next request to the server, which then removes them.
 
 **Prototype limitation:** Doctor identities are not professionally verified. Anyone can register with the doctor role, and the name shown at confirmation is self-declared. A production system would need credential verification before patients rely on this role.
 
@@ -174,6 +175,13 @@ One shared function trims the symptom name and collapses repeated whitespace to 
 - The chart plots one point per symptom per day, using the daily maximum severity. PostgreSQL computes this, and the frontend does not aggregate.
 - Days with no entries are left as gaps, not plotted as zero. The API returns only days that have entries, so a long date range cannot produce a huge response, and the frontend breaks the line across skipped days.
 - The chart shows one symptom at a time: the filtered symptom, otherwise the patient's choice, otherwise the most recently logged one.
+
+### Dashboard and interface
+
+- The dashboard shows each symptom's latest daily maximum and a 14-day pulse, built from the existing names and trends endpoints. Days without entries appear as empty outlines.
+- Severity colors use display bands: 1–3 mild, 4–6 moderate, 7–10 severe. These are not clinical categories.
+- The interface is light only.
+- Each view is in the URL hash, so reloading and the Back button work. Filters stay out of the URL so symptom names do not reach browser history.
 
 ### Editing and deleting
 
@@ -207,6 +215,6 @@ This is a prototype and is not presented as compliant with any health-data regul
 
 The take-home brief is not in this repository, so these need checking against it:
 
-- **Doctor access:** Included in the core here. Confirm that the brief requires it; if not, it could be reduced or moved to future enhancements.
+- **Doctor access:** Implemented. Confirm that the brief requires it; if not, it could be presented as an extra.
 - **Hosted deployment:** Treated as optional. If the brief requires a live URL, deployment becomes part of the core.
 - **Security scope:** Password reset, email verification, and audit logging stay out of scope unless the brief requires them.

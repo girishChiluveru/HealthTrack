@@ -7,7 +7,9 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.api.auth import router as auth_router
+from app.api.doctor import router as doctor_router
 from app.api.health import router as health_router
+from app.api.sharing import router as sharing_router
 from app.api.symptoms import router as symptoms_router
 from app.config import Settings, get_settings
 from app.log_filters import install_log_filters
@@ -82,4 +84,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(health_router, prefix="/api")
     app.include_router(auth_router, prefix="/api")
     app.include_router(symptoms_router, prefix="/api")
+    app.include_router(sharing_router, prefix="/api")
+    app.include_router(doctor_router, prefix="/api")
     return app

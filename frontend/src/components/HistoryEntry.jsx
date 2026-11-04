@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { deleteSymptomEntry } from '../api/symptoms.js';
 import { formatDate } from '../symptoms/dates.js';
+import { severityBand } from '../symptoms/severity.js';
 import EntryEditForm from './EntryEditForm.jsx';
 
-export default function HistoryEntry({ entry, timezone, onEdited, onDeleted, onMissing }) {
+// Without actions the entry is read-only, as it is for doctors.
+export default function HistoryEntry({ entry, actions }) {
+  const { timezone, onEdited, onDeleted, onMissing } = actions ?? {};
   const [mode, setMode] = useState('view');
   const [deleteError, setDeleteError] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
@@ -69,12 +72,16 @@ export default function HistoryEntry({ entry, timezone, onEdited, onDeleted, onM
     <li className="history-entry">
       <div className="history-entry__summary">
         <h3 className="history-entry__name">{entry.symptom_name}</h3>
-        <span className="history-entry__severity">Severity {entry.severity}/10</span>
+        <span
+          className={`history-entry__severity history-entry__severity--${severityBand(entry.severity)}`}
+        >
+          Severity {entry.severity}/10
+        </span>
       </div>
       <p className="history-entry__date">{formatDate(entry.occurred_on)}</p>
       {entry.notes && <p className="history-entry__notes">{entry.notes}</p>}
 
-      {mode === 'confirm-delete' ? (
+      {actions && mode === 'confirm-delete' && (
         <div className="history-entry__confirm" role="group" aria-label="Confirm deletion">
           <p>Delete this entry? This cannot be undone.</p>
           {deleteError && (
@@ -103,7 +110,8 @@ export default function HistoryEntry({ entry, timezone, onEdited, onDeleted, onM
             </button>
           </div>
         </div>
-      ) : (
+      )}
+      {actions && mode !== 'confirm-delete' && (
         <div className="action-row">
           <button
             ref={editButton}

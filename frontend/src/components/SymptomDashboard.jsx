@@ -1,72 +1,32 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
-import {
-  fetchSymptomHistory,
-  fetchSymptomNames,
-  fetchSymptomTrend,
-} from '../api/symptoms.js';
-import { useResource } from '../symptoms/useResource.js';
-import SeverityTrend from './SeverityTrend.jsx';
+import { useCallback, useRef, useState } from 'react';
+import { ownRecordSource } from '../api/symptoms.js';
+import { useHashView } from '../useHashView.js';
+import AccountPanel from './AccountPanel.jsx';
+import AppShell from './AppShell.jsx';
+import SharingPanel from './SharingPanel.jsx';
 import SymptomEntryForm from './SymptomEntryForm.jsx';
-import SymptomFilters from './SymptomFilters.jsx';
-import SymptomHistory from './SymptomHistory.jsx';
+import SymptomOverview from './SymptomOverview.jsx';
+import SymptomRecords from './SymptomRecords.jsx';
 
-const NO_FILTERS = { symptom: '', startDate: '', endDate: '' };
-const RANGE_ERROR = 'End date must be on or after the start date';
-const NO_SYMPTOMS = [];
+const NAV_ITEMS = [
+  { id: 'dashboard', label: 'Dashboard', icon: 'dashboard', subtitle: 'Your latest symptoms and how they have changed.' },
+  { id: 'log', label: 'Log symptoms', icon: 'log', subtitle: 'Add one or more symptoms in a single save.' },
+  { id: 'records', label: 'History and trends', icon: 'history', subtitle: 'Review, correct, and chart your entries.' },
+  { id: 'sharing', label: 'Sharing', icon: 'sharing', subtitle: 'Choose which doctors can see your records.' },
+  { id: 'account', label: 'Account', icon: 'account', subtitle: 'Your account details.' },
+];
 
-function hasInvalidRange({ startDate, endDate }) {
-  return Boolean(startDate && endDate && endDate < startDate);
-}
+const VIEW_IDS = NAV_ITEMS.map(({ id }) => id);
 
-export default function SymptomDashboard({ timezone }) {
-  // Every change bumps this one counter, and all three resources refetch from the server.
+export default function SymptomDashboard({ user, onLogout }) {
+  const { timezone } = user;
+  const view = useHashView(VIEW_IDS);
+  // Every change bumps this one counter, and the records refetch from the server.
   const [revision, setRevision] = useState(0);
-  // What the inputs show, and the last valid version of it that queries use.
-  const [draftFilters, setDraftFilters] = useState(NO_FILTERS);
-  const [filters, setFilters] = useState(NO_FILTERS);
-  const [chartSymptom, setChartSymptom] = useState('');
   const [notice, setNotice] = useState('');
   const historyHeading = useRef(null);
 
-  const names = useResource(fetchSymptomNames, revision);
-  const symptoms = names.data?.symptoms ?? NO_SYMPTOMS;
-
-  // An edit or delete can remove the filtered symptom, which would leave an empty view
-  // with nothing selected. Keep the date filters and fall back to all symptoms.
-  const isKnown = (key) => symptoms.some((symptom) => symptom.key === key);
-  const availableSymptom = (key) => (names.data && !isKnown(key) ? '' : key);
-  const symptomFilter = availableSymptom(filters.symptom);
-  const { startDate, endDate } = filters;
-
-  const trendKey = symptomFilter || (isKnown(chartSymptom) ? chartSymptom : symptoms[0]?.key);
-
-  const loadHistory = useCallback(
-    (signal) => fetchSymptomHistory({ symptom: symptomFilter, startDate, endDate }, signal),
-    [symptomFilter, startDate, endDate],
-  );
-  const loadTrend = useMemo(() => {
-    if (!trendKey) {
-      return null;
-    }
-    return (signal) => fetchSymptomTrend({ symptom: trendKey, startDate, endDate }, signal);
-  }, [trendKey, startDate, endDate]);
-
-  const history = useResource(loadHistory, revision);
-  const trend = useResource(loadTrend, revision);
-
   const refresh = useCallback(() => setRevision((current) => current + 1), []);
-
-  function handleFilterChange(next) {
-    setDraftFilters(next);
-    setNotice('');
-    if (!hasInvalidRange(next)) {
-      setFilters(next);
-    }
-  }
-
-  function clearFilters() {
-    handleFilterChange(NO_FILTERS);
-  }
 
   function handleCreated() {
     setNotice('');
@@ -90,36 +50,47 @@ export default function SymptomDashboard({ timezone }) {
     refresh();
   }
 
+  // Inactive views stay mounted, so filters and unsaved form input survive navigation.
   return (
-    <>
-      <SymptomEntryForm timezone={timezone} onSaved={handleCreated} />
-      <SymptomFilters
-        filters={{ ...draftFilters, symptom: availableSymptom(draftFilters.symptom) }}
-        symptoms={symptoms}
-        rangeError={hasInvalidRange(draftFilters) ? RANGE_ERROR : undefined}
-        onChange={handleFilterChange}
-        onClear={clearFilters}
-      />
-      <SeverityTrend
-        symptoms={symptoms}
-        selectedKey={trendKey}
-        showSelector={!symptomFilter}
-        trend={trend}
-        dateRange={{ startDate, endDate }}
-        onSelect={setChartSymptom}
-        onRetry={refresh}
-      />
-      <SymptomHistory
-        history={history}
-        hasFilters={Boolean(symptomFilter || startDate || endDate)}
-        notice={notice}
-        headingRef={historyHeading}
-        timezone={timezone}
-        onEdited={handleEdited}
-        onDeleted={handleDeleted}
-        onMissing={handleMissing}
-        onRetry={refresh}
-      />
-    </>
+    <AppShell user={user} navItems={NAV_ITEMS} activeView={view} onLogout={onLogout}>
+      <div hidden={view !== 'dashboard'}>
+        <SymptomOverview
+          source={ownRecordSource}
+          revision={revision}
+          timezone={timezone}
+          onLogSymptoms={() => {
+            window.location.hash = 'log';
+          }}
+          onRetry={refresh}
+        />
+      </div>
+      <div hidden={view !== 'log'}>
+        <SymptomEntryForm timezone={timezone} onSaved={handleCreated} />
+      </div>
+      <div hidden={view !== 'records'}>
+        <SymptomRecords
+          source={ownRecordSource}
+          revision={revision}
+          onRefresh={refresh}
+          notice={notice}
+          noEntriesText="No entries yet. Log a symptom to get started."
+          noTrendText="Log a symptom to see its trend here."
+          headingRef={historyHeading}
+          entryActions={{
+            timezone,
+            onEdited: handleEdited,
+            onDeleted: handleDeleted,
+            onMissing: handleMissing,
+          }}
+          onFiltersChanged={() => setNotice('')}
+        />
+      </div>
+      <div hidden={view !== 'sharing'}>
+        <SharingPanel />
+      </div>
+      <div hidden={view !== 'account'}>
+        <AccountPanel user={user} />
+      </div>
+    </AppShell>
   );
 }
