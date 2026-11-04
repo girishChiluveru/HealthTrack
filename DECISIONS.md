@@ -37,13 +37,14 @@ These are not current implementation requirements.
 | Layer | Technology | Why |
 |---|---|---|
 | Frontend | React + JavaScript + Vite | Component-based interactive UI, fast dev server and build |
-| Backend | FastAPI + Python 3.12 | REST API, Pydantic validation, automatic API docs |
-| Database | PostgreSQL 16 | Relational data, foreign keys, constraints, trend queries |
-| ORM / migrations | SQLAlchemy 2.0 + Alembic | Typed models, versioned schema changes |
-| Authentication | JWT + Argon2 password hashing | Simple bearer auth for patients and doctors; passwords never stored in plaintext |
+| Backend | FastAPI + Python 3.12 + pydantic-settings | REST API, Pydantic validation, automatic API docs, validated configuration |
+| Database | PostgreSQL 16 + psycopg 3 | Relational data, foreign keys, constraints, trend queries |
+| ORM / migrations | SQLAlchemy 2.0 (synchronous) + Alembic | Typed models, versioned schema changes |
+| Authentication | JWT (PyJWT) + Argon2 (argon2-cffi) + email-validator | Simple bearer auth for patients and doctors; passwords never stored in plaintext |
 | Charts | Chart.js + react-chartjs-2 | Severity trends over time |
 | Testing | pytest + HTTPX | Service unit tests and API tests |
-| Local demo | Docker Compose (PostgreSQL) + synthetic seed data | Primary demo path; reproducible and independent of hosted services |
+| Linting | Ruff (Python), ESLint (JavaScript) | Consistent style and early error detection |
+| Local demo | Docker Compose (PostgreSQL) + synthetic seed data; API on port 8001 | Primary demo path; reproducible and independent of hosted services. Docker Desktop can occupy port 8000 |
 | Hosting (optional) | Vercel (frontend), Render (API), Supabase (database) | Only after the core and local demo are reliable |
 
 `tzdata` is included so that Python's `zoneinfo` can validate timezones on Windows, which has no system timezone database.
@@ -186,7 +187,7 @@ One shared function trims the symptom name and collapses repeated whitespace to 
 - **Passwords:** Hashed with Argon2, with a minimum length of 8 characters. Failed logins return one generic error.
 - **Authentication and ownership:** See [Authentication](#5-authentication) and [Authorization](#6-authorization).
 - **CORS:** Explicit origin allowlist from configuration; no wildcard.
-- **Environment variables:** `DATABASE_URL`, `JWT_SECRET`, and `CORS_ORIGINS` come from the environment. Real `.env` files are not committed; `.env.example` documents the names.
+- **Environment variables:** `DATABASE_URL`, `JWT_SECRET`, `JWT_ALGORITHM`, and `CORS_ORIGINS` come from the environment. Real `.env` files are not committed; `.env.example` documents the names.
 - **Demo data:** Seed and demo data are synthetic only. Real health information must not be entered.
 - **Logs:** Logs exclude request bodies, symptom names, notes, passwords, and tokens.
 - **Accepted trade-off:** Registration reports when an email is already in use, which reveals that the account exists.

@@ -20,5 +20,6 @@ def test_unexpected_error_returns_generic_response(app: FastAPI, client: TestCli
     assert response.headers["access-control-allow-origin"] == ALLOWED_ORIGIN
 
 
-def test_settings_repr_hides_database_password(settings: Settings) -> None:
+def test_settings_repr_hides_secrets(settings: Settings) -> None:
     assert "unused:unused" not in repr(settings)
+    assert settings.jwt_secret.get_secret_value() not in repr(settings)

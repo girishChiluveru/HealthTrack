@@ -1,8 +1,8 @@
 from functools import lru_cache
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 
-from pydantic import SecretStr, field_validator
+from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 ENV_FILE = Path(__file__).resolve().parents[1] / ".env"
@@ -13,8 +13,11 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=ENV_FILE, extra="ignore")
 
-    # SecretStr keeps the database password out of reprs and logs.
+    # SecretStr keeps these values out of reprs and logs.
     database_url: SecretStr
+    jwt_secret: SecretStr = Field(min_length=32)
+    # Limited to HMAC algorithms, since the signing key is a shared secret.
+    jwt_algorithm: Literal["HS256", "HS384", "HS512"] = "HS256"
     cors_origins: Annotated[list[str], NoDecode]
 
     @field_validator("cors_origins", mode="before")
