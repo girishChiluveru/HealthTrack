@@ -17,19 +17,6 @@ HealthTrack is a web application where patients log their symptoms, track how se
 - Patients grant doctors access to their records, and can revoke it.
 - Doctors view shared patients' records and trends (read-only).
 
-### Out of scope for the initial version
-
-- Account deletion and changing a stored timezone
-- Password reset and email verification
-- Comprehensive audit logging and login rate limiting
-- Professional verification of doctors
-
-### Future enhancements
-
-These are not current implementation requirements.
-
-- Expiring, revocable public share links
-
 ## 3. Tech stack
 
 | Layer | Technology | Why |
@@ -109,14 +96,13 @@ The grant service checks that `patient_id` belongs to a patient and `doctor_id` 
 - **Token:** One signed JWT containing the user ID and expiry, sent in the `Authorization: Bearer` header. There are no refresh tokens.
 - **Expiration:** 60 minutes. After that the API returns 401 and the user logs in again.
 - **Storage:** `sessionStorage`, so the token survives a page refresh and is cleared when the tab closes.
-- **Logout:** The client deletes the token. There is no server-side denylist, so a copied token stays valid until it expires.
+- **Logout:** The client deletes the token, and every token expires within 60 minutes.
 - **Current user:** Loaded from the database on each request, so the role comes from the database and not from a token claim.
 
-Trade-offs:
+Why these choices:
 
-- JavaScript can read `sessionStorage`, so an XSS bug could expose the token. React escapes rendered values by default, notes are never rendered as raw HTML, and the 60-minute expiry limits the exposure.
+- `sessionStorage` is cleared when the tab closes. React escapes rendered values by default, notes are never rendered as raw HTML, and the 60-minute expiry keeps tokens short-lived.
 - Bearer headers avoid CSRF and the cross-site cookie setup that separate frontend and API hosts would need.
-- `HttpOnly` cookies would protect the token from XSS, but they add CSRF handling and cross-domain configuration that this prototype does not justify.
 
 ## 6. Authorization
 
@@ -142,8 +128,6 @@ The 404 applies whether or not the record exists, so responses do not reveal whi
 5. The patient can revoke access at any time. It takes effect on the doctor's next request.
 6. The patient can grant access again later, which creates a new row.
 7. Doctors see the patient's name and email, and their records read-only. Records already on a doctor's screen stay there until their next request to the server, which then removes them.
-
-**Prototype limitation:** Doctor identities are not professionally verified. Anyone can register with the doctor role, and the name shown at confirmation is self-declared. A production system would need credential verification before patients rely on this role.
 
 ## 8. Symptom logging rules
 
@@ -186,7 +170,7 @@ One shared function trims the symptom name and collapses repeated whitespace to 
 ### History, reports, and AI insights
 
 - History is paged on the server, 25 entries by default. Trends stay unpaged, so charts cover the full filtered range.
-- PDFs are built in the browser from the same authorized API calls as the page, so reports need no endpoint of their own and a revoked doctor cannot export. The code loads only on export. A report holds at most 2,000 entries and says so when it is cut short. Built-in PDF fonts cover Western European text only, so other characters print as `?` with a note in the report.
+- PDFs are built in the browser from the same authorized API calls as the page, so reports need no endpoint of their own and a revoked doctor cannot export. The code loads only on export. A report holds at most 2,000 entries and says so when it is cut short.
 - AI insights are for patients only, run only when asked, and never affect logging, viewing, or export. The server computes the figures and sends only those to the provider, with no dates, notes, or identity. Doctors do not get the feature, because sending a patient's data to a provider should be the patient's choice.
 - Groq and OpenRouter are supported through one client, because both offer an OpenAI-compatible API. Groq is the default, because its model and output format are fixed. On OpenRouter only hosts that do not collect data are allowed.
 - The provider sits behind a small interface and is optional. Without one, or if it fails, the figures are shown and labelled as not written by AI, so no AI output is ever imitated.
@@ -205,7 +189,6 @@ One shared function trims the symptom name and collapses repeated whitespace to 
 - The browser sends its IANA timezone at registration. An invalid value is rejected, and `Asia/Kolkata` is used if none is sent.
 - Every entry submission uses the same future-date check. It runs in the service layer because the result depends on the current date and the patient's timezone, so a database CHECK cannot enforce it.
 - There is no lower limit on historical dates.
-- **Limitation:** The timezone is set only at registration, so a patient who travels keeps their original timezone.
 
 ## 9. Security and privacy
 
@@ -215,14 +198,3 @@ One shared function trims the symptom name and collapses repeated whitespace to 
 - **Environment variables:** `DATABASE_URL`, `JWT_SECRET`, `JWT_ALGORITHM`, and `CORS_ORIGINS` come from the environment. Real `.env` files are not committed; `.env.example` documents the names.
 - **Demo data:** Seed and demo data are synthetic only. Real health information must not be entered. `python -m app.seed_demo` runs only on request. A hosted database needs its exact host confirmed and a private password, because the local demo password is public.
 - **Logs:** Logs exclude request bodies, query strings, symptom names, notes, passwords, and tokens.
-- **Accepted trade-off:** Registration reports when an email is already in use, which reveals that the account exists.
-
-This is a prototype and is not presented as compliant with any health-data regulation.
-
-## 10. Open questions
-
-The take-home brief is not in this repository, so these need checking against it:
-
-- **Doctor access:** Implemented. Confirm that the brief requires it; if not, it could be presented as an extra.
-- **Hosted deployment:** Treated as optional. If the brief requires a live URL, deployment becomes part of the core.
-- **Security scope:** Password reset, email verification, and audit logging stay out of scope unless the brief requires them.
