@@ -135,6 +135,7 @@ def test_history_lists_entries_newest_first(
     assert set(entries[0]) == {
         "id",
         "symptom_name",
+        "symptom_key",
         "occurred_on",
         "severity",
         "notes",

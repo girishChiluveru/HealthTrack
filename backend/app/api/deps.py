@@ -9,6 +9,7 @@ from app.config import Settings
 from app.database import get_db
 from app.models import User, UserRole
 from app.security import InvalidTokenError, decode_access_token
+from app.services.insights import InsightProvider
 
 # auto_error is off because its default response for a missing token is 403, not 401.
 bearer_scheme = HTTPBearer(auto_error=False)
@@ -18,8 +19,13 @@ def get_app_settings(request: Request) -> Settings:
     return request.app.state.settings
 
 
+def get_insight_provider(request: Request) -> InsightProvider | None:
+    return request.app.state.insight_provider
+
+
 DbSession = Annotated[Session, Depends(get_db)]
 AppSettings = Annotated[Settings, Depends(get_app_settings)]
+InsightProviderDep = Annotated[InsightProvider | None, Depends(get_insight_provider)]
 
 
 def unauthorized() -> HTTPException:

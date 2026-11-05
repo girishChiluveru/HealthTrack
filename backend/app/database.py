@@ -10,7 +10,7 @@ from app.config import get_settings
 
 logger = logging.getLogger(__name__)
 
-CONNECT_TIMEOUT_SECONDS = 3
+CONNECT_TIMEOUT_SECONDS = 10
 
 
 class Base(DeclarativeBase):
@@ -33,6 +33,8 @@ def get_engine() -> Engine:
     return create_engine(
         get_settings().database_url.get_secret_value(),
         pool_pre_ping=True,
+        # Hosted connection poolers allow few clients per project.
+        max_overflow=5,
         # Keeps bound values, which will include health data, out of error messages.
         hide_parameters=True,
         connect_args={"connect_timeout": CONNECT_TIMEOUT_SECONDS},

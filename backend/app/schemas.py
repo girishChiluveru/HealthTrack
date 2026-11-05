@@ -2,7 +2,7 @@ import re
 import uuid
 from datetime import date, datetime
 from functools import lru_cache
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 from zoneinfo import available_timezones
 
 from pydantic import (
@@ -31,6 +31,10 @@ SEVERITY_MIN = 1
 SEVERITY_MAX = 10
 BATCH_MIN_ENTRIES = 1
 BATCH_MAX_ENTRIES = 20
+DEFAULT_PAGE_SIZE = 25
+MAX_PAGE_SIZE = 100
+# Keeps the row offset inside what PostgreSQL accepts.
+MAX_PAGE = 1_000_000
 
 ISO_DATE_PATTERN = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
 
@@ -220,6 +224,7 @@ class SymptomEntryResponse(BaseModel):
     id: uuid.UUID
     symptom_name: str
     occurred_on: date
+    symptom_key: str
     severity: int
     notes: str | None
     created_at: datetime
@@ -227,6 +232,12 @@ class SymptomEntryResponse(BaseModel):
 
 class SymptomEntryListResponse(BaseModel):
     entries: list[SymptomEntryResponse]
+
+
+class SymptomHistoryResponse(SymptomEntryListResponse):
+    total: int
+    page: int
+    page_size: int
 
 
 class DateRangeFilters(BaseModel):
@@ -250,7 +261,7 @@ class DateRangeFilters(BaseModel):
         return value
 
 
-class SymptomHistoryFilters(DateRangeFilters):
+class SymptomRecordFilters(DateRangeFilters):
     symptom: str | None = None
 
     @field_validator("symptom")
@@ -260,6 +271,11 @@ class SymptomHistoryFilters(DateRangeFilters):
         if value is None:
             return None
         return symptom_key(reject_unstorable_characters(value)) or None
+
+
+class SymptomHistoryFilters(SymptomRecordFilters):
+    page: int = Field(default=1, ge=1, le=MAX_PAGE)
+    page_size: int = Field(default=DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE)
 
 
 class SymptomTrendFilters(DateRangeFilters):
@@ -330,3 +346,28 @@ class SharedPatient(BaseModel):
 
 class SharedPatientListResponse(BaseModel):
     patients: list[SharedPatient]
+
+
+class InsightSummary(BaseModel):
+    observations: list[str]
+    general_wellness: list[str]
+
+
+class InsightFigures(BaseModel):
+    name: str
+    entry_count: int
+    days_logged: int
+    highest: int
+    lowest: int
+    earlier_average: float | None
+    later_average: float | None
+    direction: str
+
+
+class InsightResponse(BaseModel):
+    status: Literal["ok", "insufficient_data", "not_configured", "unavailable"]
+    start_date: date
+    end_date: date
+    symptoms: list[InsightFigures]
+    omitted_symptom_count: int
+    summary: InsightSummary | None

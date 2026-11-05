@@ -1,7 +1,6 @@
 import FormField from './FormField.jsx';
 import SeverityScale from './SeverityScale.jsx';
 
-// The fields of one entry, shared by the create and edit forms.
 export default function SymptomFields({ values, errors, today, onChange }) {
   function handleChange(event) {
     onChange(event.target.name, event.target.value);

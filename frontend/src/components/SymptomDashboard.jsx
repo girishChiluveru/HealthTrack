@@ -24,7 +24,6 @@ const VIEW_IDS = NAV_ITEMS.map(({ id }) => id);
 export default function SymptomDashboard({ user, onLogout }) {
   const { timezone } = user;
   const view = useHashView(VIEW_IDS);
-  // Every change bumps this one counter, and the records refetch from the server.
   const [revision, setRevision] = useState(0);
   const { toast, showToast, dismissToast } = useToast();
   const historyHeading = useRef(null);
@@ -44,7 +43,6 @@ export default function SymptomDashboard({ user, onLogout }) {
   function handleDeleted() {
     showToast('Entry deleted.');
     refresh();
-    // The focused button is about to disappear with its entry.
     historyHeading.current?.focus();
   }
 
@@ -79,6 +77,9 @@ export default function SymptomDashboard({ user, onLogout }) {
           noEntriesText="No entries yet. Log a symptom to get started."
           noTrendText="Log a symptom to see its trend here."
           headingRef={historyHeading}
+          patientName={user.name}
+          timezone={timezone}
+          showInsights
           entryActions={{
             timezone,
             onEdited: handleEdited,

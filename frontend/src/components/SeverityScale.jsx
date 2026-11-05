@@ -3,7 +3,6 @@ import { SEVERITY_LEVELS, severityBand, severityLabel } from '../symptoms/severi
 
 const GUIDANCE = '1 is the mildest and 10 is the most severe.';
 
-// A 1–10 choice built on native radio buttons. `value` stays a string, as the forms hold it.
 export default function SeverityScale({ value, error, onChange }) {
   const id = useId();
   const legendId = `${id}-legend`;

@@ -78,7 +78,15 @@ def test_single_entry_is_saved(
 
     assert response.status_code == 201
     [created] = response.json()["entries"]
-    assert set(created) == {"id", "symptom_name", "occurred_on", "severity", "notes", "created_at"}
+    assert set(created) == {
+        "id",
+        "symptom_name",
+        "symptom_key",
+        "occurred_on",
+        "severity",
+        "notes",
+        "created_at",
+    }
     assert created["symptom_name"] == "Headache"
     assert created["occurred_on"] == "2026-01-15"
     assert created["severity"] == 5

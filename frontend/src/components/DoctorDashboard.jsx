@@ -5,6 +5,7 @@ import { useResource } from '../symptoms/useResource.js';
 import { useHashView } from '../useHashView.js';
 import AccountPanel from './AccountPanel.jsx';
 import AppShell from './AppShell.jsx';
+import LoadError from './LoadError.jsx';
 import Skeleton from './Skeleton.jsx';
 import SymptomOverview from './SymptomOverview.jsx';
 import SymptomRecords from './SymptomRecords.jsx';
@@ -54,12 +55,7 @@ export default function DoctorDashboard({ user, onLogout }) {
             <Skeleton label="Loading patients…" count={2} className="skeleton--row" />
           )}
           {patients.error && (
-            <div className="alert alert--error" role="alert">
-              <p>We could not load your patients.</p>
-              <button type="button" className="link-button" onClick={refresh}>
-                Try again
-              </button>
-            </div>
+            <LoadError message="We could not load your patients." onRetry={refresh} />
           )}
           {list?.length === 0 && !patients.isLoading && (
             <p className="muted-text">
@@ -109,6 +105,8 @@ export default function DoctorDashboard({ user, onLogout }) {
               onRefresh={refresh}
               noEntriesText="This patient has no entries yet."
               noTrendText="This patient has no entries to chart yet."
+              patientName={selected.name}
+              timezone={timezone}
               onAccessLost={refresh}
             />
           </>

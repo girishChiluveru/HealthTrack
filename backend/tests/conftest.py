@@ -19,12 +19,20 @@ ALLOWED_ORIGIN = "http://localhost:5173"
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 
 
+def register_and_login(client: TestClient, email: str, role: str = "patient") -> dict[str, str]:
+    credentials = {"email": email, "password": "correct-horse-battery"}
+    client.post("/api/auth/register", json={"name": "Asha Rao", "role": role, **credentials})
+    login = client.post("/api/auth/login", json=credentials)
+    return {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+
 def build_settings(**overrides: object) -> Settings:
     """Explicit settings, so tests ignore any local .env file."""
     values = {
         "database_url": "postgresql+psycopg://unused:unused@127.0.0.1:1/unused",
         "jwt_secret": "test-only-secret-with-at-least-32-characters",
         "cors_origins": ALLOWED_ORIGIN,
+        "ai_api_key": None,
     }
     return Settings(_env_file=None, **(values | overrides))
 

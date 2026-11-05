@@ -54,8 +54,7 @@ export default function EntryEditForm({ entry, timezone, onSaved, onMissing, onC
     saveInFlight.current = true;
     setIsSaving(true);
     try {
-      await updateSymptomEntry(entry.id, toEntryPayload(values));
-      onSaved();
+      onSaved(await updateSymptomEntry(entry.id, toEntryPayload(values)));
     } catch (error) {
       if (error.status === 404) {
         onMissing();

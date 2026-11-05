@@ -8,7 +8,6 @@ import ConfirmDialog from './ConfirmDialog.jsx';
 import EntryEditForm from './EntryEditForm.jsx';
 import IconButton from './IconButton.jsx';
 
-// Without actions the entry is read-only, as it is for doctors.
 export default function HistoryEntry({ entry, actions }) {
   const { timezone, onEdited, onDeleted, onMissing } = actions ?? {};
   const [mode, setMode] = useState('view');
@@ -68,9 +67,9 @@ export default function HistoryEntry({ entry, actions }) {
         <EntryEditForm
           entry={entry}
           timezone={timezone}
-          onSaved={() => {
+          onSaved={(updated) => {
             leaveEditing();
-            onEdited();
+            onEdited(entry, updated);
           }}
           onMissing={onMissing}
           onCancel={leaveEditing}

@@ -1,10 +1,8 @@
 import { useMemo, useRef } from 'react';
 import { useResource } from './useResource.js';
 
-// Loads the daily maximums of each symptom through the trend API. Results are kept for the
-// current filters and revision, so showing or hiding a line needs no new requests. Any change
-// to the records bumps `revision`, which discards them. `dateRange` is returned with the data,
-// so the axis and the points always change together.
+// Results are kept per filters and revision, so showing or hiding a line needs no requests.
+// `dateRange` is returned with the data, so the axis and the points always change together.
 export function useTrendSeries(source, keys, { startDate, endDate }, revision) {
   const cache = useRef({ stamp: '', points: new Map() });
   const keyList = keys.join('\n');

@@ -11,7 +11,6 @@ const MARKERS = {
   rectRot: <path d="M14 1.75L18.25 6 14 10.25 9.75 6z" />,
 };
 
-// A short sample of the line and its marker, so the key also works without color.
 function LineKey({ style, isShown }) {
   const color = isShown ? style.color : HIDDEN_KEY_COLOR;
   return (
@@ -31,7 +30,6 @@ function LineKey({ style, isShown }) {
   );
 }
 
-// Checkboxes that show or hide each line. Long lists stay short until they are expanded.
 export default function ChartLegend({ symptoms, styles, visibleKeys, emptyKeys, onToggle }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const isFull = visibleKeys.length >= MAX_CHART_LINES;

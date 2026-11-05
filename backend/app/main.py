@@ -13,6 +13,7 @@ from app.api.sharing import router as sharing_router
 from app.api.symptoms import router as symptoms_router
 from app.config import Settings, get_settings
 from app.log_filters import install_log_filters
+from app.services.insights import build_insight_provider
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +42,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     install_log_filters()
     app = FastAPI(title="HealthTrack API")
     app.state.settings = settings
+    app.state.insight_provider = build_insight_provider(settings)
 
     @app.exception_handler(RequestValidationError)
     async def handle_validation_error(

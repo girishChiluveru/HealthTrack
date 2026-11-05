@@ -1,9 +1,9 @@
 import { ChartLine, ClipboardPen, ShieldCheck } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { PulseStrip } from './SymptomPulse.jsx';
-import ApiStatus from './ApiStatus.jsx';
 import AuthPanel from './AuthPanel.jsx';
 import Brand from './Brand.jsx';
+import ThemeToggle from './ThemeToggle.jsx';
 
 // Illustration only. Null days show how days without entries appear.
 const SAMPLE_SEVERITIES = [3, 4, 4, null, 6, 7, 8, 6, null, null, 5, 4, 3, 2];
@@ -38,7 +38,6 @@ function samplePoint(severity, index) {
   return { x: CHART_INSET + index * stepX, y };
 }
 
-// Runs of consecutive days, so the sample line breaks wherever a day has no entry.
 function sampleSegments() {
   const segments = [[]];
   SAMPLE_SEVERITIES.forEach((severity, index) => {
@@ -85,6 +84,9 @@ export default function AuthScreen({ notice, onLogin, onRegister }) {
 
   return (
     <div className="auth-screen">
+      <div className="auth-screen__theme">
+        <ThemeToggle />
+      </div>
       <section className="auth-screen__story">
         <Brand />
         <div>
@@ -115,10 +117,6 @@ export default function AuthScreen({ notice, onLogin, onRegister }) {
           onLogin={onLogin}
           onRegister={onRegister}
         />
-        <div className="auth-screen__notes">
-          <p>Prototype. Please do not enter real health information.</p>
-          <ApiStatus />
-        </div>
       </main>
 
       <section className="auth-screen__details" aria-label="What HealthTrack does">

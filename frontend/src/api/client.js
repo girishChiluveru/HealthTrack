@@ -1,6 +1,7 @@
 import { clearToken, getToken } from '../auth/tokenStorage.js';
 
-const REQUEST_TIMEOUT_MS = 10000;
+// A free hosted API can take about a minute to wake up.
+const REQUEST_TIMEOUT_MS = 70000;
 
 let handleUnauthorized = () => {};
 
@@ -29,8 +30,11 @@ async function readJson(response) {
   }
 }
 
-export async function apiRequest(path, { method = 'GET', body, signal } = {}) {
-  const baseUrl = import.meta.env.VITE_API_BASE_URL;
+export async function apiRequest(
+  path,
+  { method = 'GET', body, signal, timeoutMs = REQUEST_TIMEOUT_MS } = {},
+) {
+  const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, '');
   if (!baseUrl) {
     throw new ApiError('The app is not configured: VITE_API_BASE_URL is not set.');
   }
@@ -44,7 +48,7 @@ export async function apiRequest(path, { method = 'GET', body, signal } = {}) {
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const timeout = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
+  const timeout = AbortSignal.timeout(timeoutMs);
   let response;
   try {
     response = await fetch(`${baseUrl}${path}`, {

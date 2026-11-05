@@ -5,7 +5,6 @@ export function fetchSharedPatients(signal) {
   return apiRequest('/api/doctor/patients', { signal });
 }
 
-// The same shape as the patient's own record source, read through the doctor routes.
 export function sharedPatientSource(patientId) {
   const base = `/api/doctor/patients/${patientId}/symptoms`;
   return {

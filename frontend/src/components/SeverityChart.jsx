@@ -6,18 +6,15 @@ import {
   PointElement,
   Tooltip,
 } from 'chart.js';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Line } from 'react-chartjs-2';
-import { chartDayRange, toChartPoints, toTableRows } from '../symptoms/chartData.js';
-import { formatDate, formatEpochDay } from '../symptoms/dates.js';
+import { buildChartData, buildChartOptions } from '../symptoms/chartConfig.js';
+import { toTableRows } from '../symptoms/chartData.js';
+import { formatDate } from '../symptoms/dates.js';
+import { useTheme } from '../theme.js';
 
 ChartJS.register(LinearScale, LineController, LineElement, PointElement, Tooltip);
 
-const DAYS_PER_YEAR = 365;
-const UPDATE_MS = 200;
-const TOOLTIP_MS = 100;
-
-// Marks the date under the pointer, so readers can aim at a day and not at a thin line.
 const CROSSHAIR = {
   id: 'crosshair',
   afterDatasetsDraw({ ctx, chartArea, scales, tooltip }) {
@@ -43,108 +40,17 @@ function prefersReducedMotion() {
 }
 
 // Canvas drawing cannot use CSS variables, so the values are read from the stylesheet.
-function readChartTheme() {
+function readChartTheme(mode) {
   const styles = getComputedStyle(document.documentElement);
   const token = (name) => styles.getPropertyValue(name).trim();
   return {
+    mode,
     grid: token('--color-border'),
     muted: token('--color-muted'),
     surface: token('--color-surface'),
-    text: token('--color-ink'),
-  };
-}
-
-function tooltipLabel(item, isSingle) {
-  const { entryCount } = item.raw;
-  const detail = entryCount > 1 ? ` (highest of ${entryCount} entries)` : '';
-  return isSingle
-    ? `Severity ${item.parsed.y}${detail}`
-    : `${item.parsed.y}  ${item.dataset.label}${detail}`;
-}
-
-function buildOptions(series, dateRange, theme) {
-  const { min, max } = chartDayRange(
-    series.flatMap(({ points }) => points),
-    dateRange,
-  );
-  const includeYear = max - min > DAYS_PER_YEAR;
-  const isSingle = series.length === 1;
-  const reducedMotion = prefersReducedMotion();
-
-  return {
-    responsive: true,
-    maintainAspectRatio: false,
-    animation: reducedMotion ? false : { duration: UPDATE_MS, easing: 'easeOutQuad' },
-    interaction: { mode: 'nearest', axis: 'x', intersect: false },
-    scales: {
-      x: {
-        type: 'linear',
-        min,
-        max,
-        grid: { display: false },
-        border: { color: theme.grid },
-        ticks: {
-          color: theme.muted,
-          maxTicksLimit: 6,
-          maxRotation: 0,
-          precision: 0,
-          callback: (day) => formatEpochDay(day, { includeYear }),
-        },
-      },
-      y: {
-        min: 1,
-        max: 10,
-        title: { display: true, text: 'Severity', color: theme.muted },
-        grid: { color: theme.grid },
-        border: { display: false },
-        ticks: { color: theme.muted, stepSize: 1, precision: 0 },
-      },
-    },
-    plugins: {
-      tooltip: {
-        animation: { duration: reducedMotion ? 0 : TOOLTIP_MS },
-        backgroundColor: theme.text,
-        titleColor: theme.surface,
-        bodyColor: theme.surface,
-        padding: 10,
-        boxPadding: 4,
-        displayColors: !isSingle,
-        usePointStyle: true,
-        filter: (item) => item.parsed.y !== null,
-        itemSort: (a, b) => b.parsed.y - a.parsed.y,
-        callbacks: {
-          title: ([item]) => (item ? formatEpochDay(item.parsed.x, { includeYear: true }) : ''),
-          label: (item) => tooltipLabel(item, isSingle),
-        },
-      },
-    },
-  };
-}
-
-function buildData(series, theme) {
-  const isSingle = series.length === 1;
-  return {
-    datasets: series.map(({ key, name, points, style }) => ({
-      key,
-      label: name,
-      data: toChartPoints(points),
-      borderColor: style.color,
-      backgroundColor: style.color,
-      borderDash: style.dash,
-      borderWidth: 2,
-      borderCapStyle: 'round',
-      borderJoinStyle: 'round',
-      spanGaps: false,
-      clip: false,
-      pointStyle: style.pointStyle,
-      pointRadius: isSingle ? 5 : 4,
-      pointHoverRadius: isSingle ? 7 : 6,
-      pointHitRadius: 16,
-      pointBorderColor: theme.surface,
-      pointBorderWidth: isSingle ? 2 : 1,
-      pointHoverBorderColor: theme.surface,
-      pointHoverBorderWidth: 2,
-    })),
+    tooltip: token('--tooltip-bg'),
+    tooltipText: token('--tooltip-text'),
+    series: [1, 2, 3, 4, 5, 6].map((index) => token(`--series-${index}`)),
   };
 }
 
@@ -221,12 +127,15 @@ function MultiTable({ series }) {
   );
 }
 
-// `series` holds at least one symptom, and each symptom has at least one point.
 export default function SeverityChart({ series, dateRange, isRefreshing }) {
-  const [theme] = useState(readChartTheme);
+  const mode = useTheme();
+  const theme = useMemo(() => readChartTheme(mode), [mode]);
   // Stable objects let the chart animate from its current state instead of restarting.
-  const data = useMemo(() => buildData(series, theme), [series, theme]);
-  const options = useMemo(() => buildOptions(series, dateRange, theme), [series, dateRange, theme]);
+  const data = useMemo(() => buildChartData(series, theme), [series, theme]);
+  const options = useMemo(
+    () => buildChartOptions(series, dateRange, theme, { animate: !prefersReducedMotion() }),
+    [series, dateRange, theme],
+  );
 
   return (
     <>

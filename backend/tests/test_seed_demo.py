@@ -13,35 +13,43 @@ from app.seed_demo import (
     MAIN_PATIENT_EXTRAS,
     MAIN_PATIENT_SEVERITIES,
     OTHER_PATIENT,
-    require_local_database,
     seed,
+    seed_password,
 )
 
 TODAY = date(2026, 3, 30)
 
 
-@pytest.mark.parametrize(
-    "url",
-    [
-        "postgresql+psycopg://u:p@127.0.0.1:5432/healthtrack",
-        "postgresql+psycopg://u:p@localhost/healthtrack",
-    ],
-)
-def test_local_databases_are_allowed(url: str) -> None:
-    require_local_database(url)
+LOCAL_URL = "postgresql+psycopg://u:p@127.0.0.1:5432/healthtrack"
+HOSTED_URL = "postgresql+psycopg://u:p@aws-0-region.pooler.supabase.com:5432/postgres"
+HOSTED_HOST = "aws-0-region.pooler.supabase.com"
+PRIVATE_PASSWORD = "a-private-password"
 
 
-@pytest.mark.parametrize(
-    "url",
-    [
-        "postgresql+psycopg://u:p@db.supabase.example:5432/postgres",
-        "postgresql+psycopg://u:p@10.0.0.5/healthtrack",
-        "postgresql+psycopg://u:p@localhost.attacker.example/healthtrack",
-    ],
-)
-def test_other_databases_are_refused(url: str) -> None:
+def test_local_databases_use_the_public_demo_password() -> None:
+    assert seed_password(LOCAL_URL, None, "") == DEMO_PASSWORD
+
+
+def test_a_hosted_database_needs_its_exact_host_confirmed() -> None:
+    for confirmed in (None, "other.example.com", "aws-0-region"):
+        with pytest.raises(SystemExit, match="Refusing to seed"):
+            seed_password(HOSTED_URL, confirmed, PRIVATE_PASSWORD)
+
+
+@pytest.mark.parametrize("password", ["", "short"])
+def test_a_hosted_database_needs_a_private_password(password: str) -> None:
+    with pytest.raises(SystemExit, match="DEMO_PASSWORD"):
+        seed_password(HOSTED_URL, HOSTED_HOST, password)
+
+
+def test_a_confirmed_hosted_database_uses_the_private_password() -> None:
+    assert seed_password(HOSTED_URL, HOSTED_HOST, PRIVATE_PASSWORD) == PRIVATE_PASSWORD
+
+
+def test_a_lookalike_of_a_local_host_is_not_local() -> None:
+    url = "postgresql+psycopg://u:p@localhost.attacker.example/healthtrack"
     with pytest.raises(SystemExit, match="Refusing to seed"):
-        require_local_database(url)
+        seed_password(url, None, "")
 
 
 def test_every_series_covers_the_same_days() -> None:

@@ -1,7 +1,5 @@
 import { useId, useLayoutEffect, useRef } from 'react';
 
-// A native modal dialog, which traps focus and closes on Escape. Focus starts on the safe
-// choice, and closing the dialog returns it to the button that opened it.
 export default function ConfirmDialog({
   title,
   children,

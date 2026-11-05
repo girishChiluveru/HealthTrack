@@ -2,8 +2,20 @@
 .env
 .env.*
 !.env.example
+
+# Secrets and private exports
+*.pem
+*.key
+*.dump
+healthtrack-report-*.pdf
+
+# Local deployment helpers, which read a private settings file
+scripts/
+
+# Local tool state
 .claude
 skills-lock.json
+.vercel/
 # Python
 __pycache__/
 *.py[cod]

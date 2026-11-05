@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { fetchGrants } from '../api/sharing.js';
 import { useResource } from '../symptoms/useResource.js';
+import LoadError from './LoadError.jsx';
 import ShareWithDoctorForm from './ShareWithDoctorForm.jsx';
 import SharedDoctorItem from './SharedDoctorItem.jsx';
 import Skeleton from './Skeleton.jsx';
@@ -26,7 +27,6 @@ export default function SharingPanel({ onNotify }) {
   function handleRevoked(grant) {
     onNotify(`${grant.doctor.name} can no longer see your records.`);
     refresh();
-    // The focused button is about to disappear with its doctor.
     heading.current?.focus();
   }
 
@@ -53,12 +53,7 @@ export default function SharingPanel({ onNotify }) {
         <Skeleton label="Loading doctors…" className="skeleton--row" />
       )}
       {grants.error && (
-        <div className="alert alert--error" role="alert">
-          <p>We could not load the doctors you share with.</p>
-          <button type="button" className="link-button" onClick={refresh}>
-            Try again
-          </button>
-        </div>
+        <LoadError message="We could not load the doctors you share with." onRetry={refresh} />
       )}
       {list?.length === 0 && (
         <p className="muted-text">You are not sharing your records with anyone.</p>

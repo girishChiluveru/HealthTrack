@@ -1,4 +1,3 @@
-// A button with no visible text. `label` is its accessible name and its tooltip.
 export default function IconButton({
   label,
   icon: Glyph,

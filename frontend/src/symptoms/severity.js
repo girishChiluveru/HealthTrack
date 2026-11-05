@@ -14,21 +14,19 @@ export function severityLabel(severity) {
   return BAND_LABELS[severityBand(severity)];
 }
 
-// Any two lines can cross on a chart, so these were validated as all pairs, not just neighbours.
-const SYMPTOM_COLORS = ['#5b3fe0', '#0369a1', '#0ea5e9', '#059669', '#ea580c', '#92400e'];
+const COLOR_COUNT = 6;
 const POINT_STYLES = ['circle', 'rect', 'triangle', 'rectRot'];
 const DASHES = [[], [6, 4]];
-const SLOT_COUNT = SYMPTOM_COLORS.length * DASHES.length;
+const SLOT_COUNT = COLOR_COUNT * DASHES.length;
 
 function hashKey(key) {
   return [...key].reduce((total, character) => total + character.codePointAt(0), 0);
 }
 
-// Tries every color with solid lines before starting on dashed ones.
 function freeSlot(hash, used) {
   for (let tier = 0; tier < DASHES.length; tier += 1) {
-    for (let offset = 0; offset < SYMPTOM_COLORS.length; offset += 1) {
-      const slot = tier * SYMPTOM_COLORS.length + ((hash + offset) % SYMPTOM_COLORS.length);
+    for (let offset = 0; offset < COLOR_COUNT; offset += 1) {
+      const slot = tier * COLOR_COUNT + ((hash + offset) % COLOR_COUNT);
       if (!used.has(slot)) {
         return slot;
       }
@@ -48,10 +46,11 @@ export function assignSymptomStyles(keys) {
     }
     const slot = freeSlot(hashKey(key), used);
     used.add(slot);
-    const colorIndex = slot % SYMPTOM_COLORS.length;
-    const tier = Math.floor(slot / SYMPTOM_COLORS.length);
+    const colorIndex = slot % COLOR_COUNT;
+    const tier = Math.floor(slot / COLOR_COUNT);
     styles.set(key, {
-      color: SYMPTOM_COLORS[colorIndex],
+      colorIndex,
+      color: `var(--series-${colorIndex + 1})`,
       pointStyle: POINT_STYLES[(colorIndex + tier) % POINT_STYLES.length],
       dash: DASHES[tier],
     });

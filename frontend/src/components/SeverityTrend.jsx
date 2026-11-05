@@ -2,6 +2,7 @@ import { ChartLine, ChartSpline } from 'lucide-react';
 import { useMemo } from 'react';
 import ChartLegend from './ChartLegend.jsx';
 import FormField from './FormField.jsx';
+import LoadError from './LoadError.jsx';
 import SegmentedControl from './SegmentedControl.jsx';
 import SeverityChart from './SeverityChart.jsx';
 import Skeleton from './Skeleton.jsx';
@@ -119,12 +120,7 @@ export default function SeverityTrend({
             />
           )}
           {trend.error && (
-            <div className="alert alert--error" role="alert">
-              <p>We could not load the chart.</p>
-              <button type="button" className="link-button" onClick={onRetry}>
-                Try again
-              </button>
-            </div>
+            <LoadError message="We could not load the chart." onRetry={onRetry} />
           )}
           {renderChart()}
         </>

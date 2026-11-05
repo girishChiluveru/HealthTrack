@@ -1,7 +1,7 @@
 import { LogOut } from 'lucide-react';
 import { useRef } from 'react';
-import ApiStatus from './ApiStatus.jsx';
 import Brand from './Brand.jsx';
+import ThemeToggle from './ThemeToggle.jsx';
 
 const ROLE_LABELS = { patient: 'Patient', doctor: 'Doctor' };
 
@@ -50,6 +50,7 @@ export default function AppShell({ user, navItems, activeView, onLogout, childre
           </div>
           <div className="topbar__actions">
             <span className="role-chip">{ROLE_LABELS[user.role]}</span>
+            <ThemeToggle />
             <button type="button" className="button button--secondary" onClick={onLogout}>
               <LogOut size={16} aria-hidden="true" />
               Log out
@@ -60,11 +61,6 @@ export default function AppShell({ user, navItems, activeView, onLogout, childre
         <main ref={main} className="shell__main" tabIndex={-1}>
           {children}
         </main>
-
-        <footer className="site-footer">
-          <p>Prototype. Please do not enter real health information.</p>
-          <ApiStatus />
-        </footer>
       </div>
     </div>
   );

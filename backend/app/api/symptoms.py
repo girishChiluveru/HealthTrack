@@ -4,27 +4,34 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import JSONResponse
 
-from app.api.deps import DbSession, PatientUser
+from app.api.deps import DbSession, InsightProviderDep, PatientUser
+from app.api.records import history_response, names_response, trend_response
 from app.models import SymptomEntry
 from app.schemas import (
+    InsightResponse,
+    InsightSummary,
     SymptomBatchRequest,
     SymptomEntryListResponse,
     SymptomEntryResponse,
     SymptomEntryUpdate,
     SymptomHistoryFilters,
-    SymptomName,
+    SymptomHistoryResponse,
     SymptomNameListResponse,
+    SymptomRecordFilters,
     SymptomTrendFilters,
     SymptomTrendResponse,
-    TrendPoint,
+)
+from app.services.insights import (
+    MIN_LOGGED_DAYS,
+    compute_figures,
+    generate_text,
+    insight_period,
+    provider_facts,
 )
 from app.services.symptoms import (
     SymptomValidationError,
-    daily_max_severity,
     delete_entry,
     get_owned_entry,
-    list_entries,
-    list_symptom_names,
     save_entries,
     today_in_timezone,
     update_entry,
@@ -55,20 +62,15 @@ OwnedEntry = Annotated[SymptomEntry, Depends(require_owned_entry)]
 @router.get("")
 def read_symptom_history(
     filters: Annotated[SymptomHistoryFilters, Query()], user: PatientUser, db: DbSession
-) -> SymptomEntryListResponse:
-    """List the patient's entries, newest occurrence first."""
-    rows = list_entries(db, user.id, filters)
-    return SymptomEntryListResponse(
-        entries=[SymptomEntryResponse.model_validate(row) for row in rows]
-    )
+) -> SymptomHistoryResponse:
+    """List one page of the patient's entries, newest occurrence first."""
+    return history_response(db, user.id, filters)
 
 
 @router.get("/names")
 def read_symptom_names(user: PatientUser, db: DbSession) -> SymptomNameListResponse:
     """List the patient's distinct symptoms, most recently logged first."""
-    return SymptomNameListResponse(
-        symptoms=[SymptomName(**row) for row in list_symptom_names(db, user.id)]
-    )
+    return names_response(db, user.id)
 
 
 @router.get("/trends")
@@ -76,11 +78,37 @@ def read_symptom_trend(
     filters: Annotated[SymptomTrendFilters, Query()], user: PatientUser, db: DbSession
 ) -> SymptomTrendResponse:
     """Return the daily maximum severity of one symptom, with no points for empty days."""
-    rows = daily_max_severity(db, user.id, filters)
-    return SymptomTrendResponse(
-        symptom_key=filters.symptom,
-        points=[TrendPoint.model_validate(row, from_attributes=True) for row in rows],
-    )
+    return trend_response(db, user.id, filters)
+
+
+@router.post("/insights")
+def create_symptom_insights(
+    filters: SymptomRecordFilters, user: PatientUser, db: DbSession, provider: InsightProviderDep
+) -> InsightResponse:
+    """Summarize the patient's figures, with AI text only when a provider is configured."""
+    start, end = insight_period(filters, today_in_timezone(user.timezone))
+    figures, logged_days, omitted = compute_figures(db, user.id, filters, start, end)
+    # Returns the connection, so a slow provider does not hold one for the whole wait.
+    db.rollback()
+
+    def respond(status: str, summary: InsightSummary | None = None) -> InsightResponse:
+        return InsightResponse(
+            status=status,
+            start_date=start,
+            end_date=end,
+            symptoms=figures,
+            omitted_symptom_count=omitted,
+            summary=summary,
+        )
+
+    if logged_days < MIN_LOGGED_DAYS:
+        return respond("insufficient_data")
+    if provider is None:
+        return respond("not_configured")
+    text = generate_text(provider, provider_facts(figures, start, end))
+    if text is None:
+        return respond("unavailable")
+    return respond("ok", InsightSummary(**text.model_dump()))
 
 
 @router.post(

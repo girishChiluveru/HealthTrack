@@ -4,6 +4,7 @@ import { addDays, formatDate, listDays } from '../symptoms/dates.js';
 import { assignSymptomStyles } from '../symptoms/severity.js';
 import { useResource } from '../symptoms/useResource.js';
 import { todayInTimezone } from '../symptoms/validation.js';
+import LoadError from './LoadError.jsx';
 import Skeleton from './Skeleton.jsx';
 import SymptomPulse from './SymptomPulse.jsx';
 
@@ -45,7 +46,6 @@ function SymptomTile({ symptom }) {
   );
 }
 
-// The latest severities and a 14-day view. Daily maximums come from the trend API.
 export default function SymptomOverview({ source, revision, timezone, onLogSymptoms, onRetry }) {
   const today = todayInTimezone(timezone);
   const startDate = addDays(today, 1 - WINDOW_DAYS);
@@ -102,12 +102,7 @@ export default function SymptomOverview({ source, revision, timezone, onLogSympt
           />
         )}
         {overview.error && (
-          <div className="alert alert--error" role="alert">
-            <p>The summary could not be loaded.</p>
-            <button type="button" className="link-button" onClick={onRetry}>
-              Try again
-            </button>
-          </div>
+          <LoadError message="The summary could not be loaded." onRetry={onRetry} />
         )}
         {symptoms?.length === 0 && (
           <p className="muted-text">No symptoms logged in the last 14 days.</p>

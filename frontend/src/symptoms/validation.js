@@ -31,7 +31,6 @@ function validateDate(occurredOn, today) {
   if (!occurredOn) {
     return 'Date is required';
   }
-  // ISO dates compare correctly as strings.
   return occurredOn > today ? 'Date cannot be in the future' : null;
 }
 

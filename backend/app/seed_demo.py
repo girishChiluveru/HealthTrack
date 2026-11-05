@@ -1,12 +1,15 @@
 """Load synthetic demo records into a local database.
 
 Run from `backend/` with `python -m app.seed_demo`. It runs only when asked, never at startup,
-and refuses any database that is not on this machine.
+and refuses any database that is not on this machine,
+unless `--remote-host` names that database's host and DEMO_PASSWORD sets a private password.
 
 It can be run repeatedly. Each run resets the demo accounts below to the same state, relative
 to today, and leaves every other account alone. Everything here is fictional.
 """
 
+import argparse
+import os
 from dataclasses import dataclass
 from datetime import date, timedelta
 
@@ -19,13 +22,13 @@ from app.database import get_session_factory
 from app.models import DoctorAccess, SymptomEntry, User, UserRole
 from app.security import hash_password
 from app.services.sharing import get_active_grant
-from app.services.symptoms import today_in_timezone, validate_batch
-from app.symptom_names import symptom_key
+from app.services.symptoms import build_entry_rows, today_in_timezone, validate_batch
 
 # Public on purpose, like the accounts. The local-only check is what keeps them off a server.
 DEMO_PASSWORD = "demo-password-1"
 DEMO_TIMEZONE = "Asia/Kolkata"
 LOCAL_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
+MIN_REMOTE_PASSWORD_LENGTH = 12
 
 # One character per day, oldest first and ending today. A digit is that day's severity, and a
 # dash is a day with no entry, which charts show as a gap. Each covers the same 30 days.
@@ -67,17 +70,23 @@ class DemoAccount:
 
 
 MAIN_PATIENT = DemoAccount("Mira Demo", "mira.demo@example.com", UserRole.PATIENT)
-# Shares with nobody, so the doctor's list shows that access is by grant only.
 OTHER_PATIENT = DemoAccount("Noah Demo", "noah.demo@example.com", UserRole.PATIENT)
 DOCTOR = DemoAccount("Dr Lena Demo", "dr.lena.demo@example.com", UserRole.DOCTOR)
 
 
-def require_local_database(database_url: str) -> None:
+def seed_password(database_url: str, confirmed_host: str | None, private_password: str) -> str:
+    """Return the password to seed with, or refuse. A hosted database needs both confirmations."""
     host = make_url(database_url).host
-    if host not in LOCAL_HOSTS:
+    if host in LOCAL_HOSTS:
+        return private_password or DEMO_PASSWORD
+    if host != confirmed_host:
+        raise SystemExit(f"Refusing to seed {host!r}: pass --remote-host with that exact host.")
+    if len(private_password) < MIN_REMOTE_PASSWORD_LENGTH:
         raise SystemExit(
-            f"Refusing to seed: demo data is for local databases only, not host {host!r}."
+            "Refusing to seed: a hosted database needs DEMO_PASSWORD set to a private password "
+            f"of at least {MIN_REMOTE_PASSWORD_LENGTH} characters."
         )
+    return private_password
 
 
 def build_entries(
@@ -111,7 +120,7 @@ def build_entries(
     return entries
 
 
-def upsert_account(db: Session, account: DemoAccount) -> User:
+def upsert_account(db: Session, account: DemoAccount, password: str) -> User:
     user = db.scalar(select(User).where(User.email == account.email))
     if user is None:
         user = User(email=account.email, role=account.role)
@@ -119,7 +128,7 @@ def upsert_account(db: Session, account: DemoAccount) -> User:
     elif user.role != account.role:
         raise SystemExit(f"Refusing to seed: {account.email} already exists with another role.")
     user.name = account.name
-    user.password_hash = hash_password(DEMO_PASSWORD)
+    user.password_hash = hash_password(password)
     user.timezone = DEMO_TIMEZONE
     db.flush()
     return user
@@ -128,17 +137,7 @@ def upsert_account(db: Session, account: DemoAccount) -> User:
 def replace_entries(db: Session, patient: User, raw_entries: list[dict], today: date) -> None:
     """Swap in the planned entries, checked by the same rules as the API."""
     db.execute(delete(SymptomEntry).where(SymptomEntry.patient_id == patient.id))
-    db.add_all(
-        SymptomEntry(
-            patient_id=patient.id,
-            symptom_name=entry.symptom_name,
-            symptom_key=symptom_key(entry.symptom_name),
-            severity=entry.severity,
-            occurred_on=entry.occurred_on,
-            notes=entry.notes,
-        )
-        for entry in validate_batch(raw_entries, today)
-    )
+    db.add_all(build_entry_rows(patient.id, validate_batch(raw_entries, today)))
 
 
 def close_other_grants(db: Session, patient: User, doctor: User) -> None:
@@ -154,11 +153,11 @@ def close_other_grants(db: Session, patient: User, doctor: User) -> None:
         grant.revoked_at = func.now()
 
 
-def seed(db: Session, today: date) -> dict[str, int]:
+def seed(db: Session, today: date, password: str = DEMO_PASSWORD) -> dict[str, int]:
     """Reset the demo accounts in one transaction, and return what they now hold."""
-    main_patient = upsert_account(db, MAIN_PATIENT)
-    other_patient = upsert_account(db, OTHER_PATIENT)
-    doctor = upsert_account(db, DOCTOR)
+    main_patient = upsert_account(db, MAIN_PATIENT, password)
+    other_patient = upsert_account(db, OTHER_PATIENT, password)
+    doctor = upsert_account(db, DOCTOR, password)
 
     main_entries = build_entries(
         MAIN_PATIENT_SEVERITIES, MAIN_PATIENT_EXTRAS, MAIN_PATIENT_NOTES, today
@@ -175,13 +174,19 @@ def seed(db: Session, today: date) -> dict[str, int]:
 
 
 def main() -> None:
-    require_local_database(get_settings().database_url.get_secret_value())
+    parser = argparse.ArgumentParser(description="Load synthetic demo records.")
+    parser.add_argument("--remote-host", help="Confirms a hosted database by its exact host.")
+    arguments = parser.parse_args()
+    password = seed_password(
+        get_settings().database_url.get_secret_value(),
+        arguments.remote_host,
+        os.environ.get("DEMO_PASSWORD", ""),
+    )
     with get_session_factory()() as db:
-        counts = seed(db, today_in_timezone(DEMO_TIMEZONE))
+        counts = seed(db, today_in_timezone(DEMO_TIMEZONE), password)
     print(f"Patient: {MAIN_PATIENT.email} ({counts['main_entries']} entries)")
     print(f"Patient: {OTHER_PATIENT.email} ({counts['other_entries']} entries, shares with nobody)")
     print(f"Doctor:  {DOCTOR.email} (can read {MAIN_PATIENT.name}'s records)")
-    print("The password is in the Demo data section of README.md.")
 
 
 if __name__ == "__main__":

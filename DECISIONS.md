@@ -29,14 +29,12 @@ HealthTrack is a web application where patients log their symptoms, track how se
 These are not current implementation requirements.
 
 - Expiring, revocable public share links
-- PDF export of symptom reports
-- AI-generated general wellness suggestions with safety guardrails
 
 ## 3. Tech stack
 
 | Layer | Technology | Why |
 |---|---|---|
-| Frontend | React + JavaScript + Vite, Plus Jakarta Sans (self-hosted), Lucide icons | Component-based interactive UI, fast dev server and build. The font ships with the app, so no third party sees visits and the demo works offline |
+| Frontend | React + JavaScript + Vite, Plus Jakarta Sans (self-hosted), Lucide icons, jsPDF | Component-based interactive UI, fast dev server and build. The font ships with the app, so no third party sees visits and the demo works offline |
 | Backend | FastAPI + Python 3.12 + pydantic-settings | REST API, Pydantic validation, automatic API docs, validated configuration |
 | Database | PostgreSQL 16 + psycopg 3 | Relational data, foreign keys, constraints, trend queries |
 | ORM / migrations | SQLAlchemy 2.0 (synchronous) + Alembic | Typed models, versioned schema changes |
@@ -44,8 +42,8 @@ These are not current implementation requirements.
 | Charts | Chart.js + react-chartjs-2 | Severity trends over time |
 | Testing | pytest + HTTPX | Service unit tests and API tests |
 | Linting | Ruff (Python), ESLint (JavaScript) | Consistent style and early error detection |
-| Local demo | Docker Compose (PostgreSQL) + synthetic seed data; API on port 8001 | Primary demo path; reproducible and independent of hosted services. Docker Desktop can occupy port 8000 |
-| Hosting (optional) | Vercel (frontend), Render (API), Supabase (database) | Only after the core and local demo are reliable |
+| Local demo | Docker Compose (PostgreSQL, Adminer as a database viewer) + synthetic seed data; API on port 8001 | Primary demo path; reproducible and independent of hosted services. Docker Desktop can occupy port 8000 |
+| Hosting | Vercel (frontend), Render (API), Supabase (database) | Free tiers suit a demo. Supabase is reached through its session pooler, its Data API is off, and every table has RLS on with no policies, so only the API's own connection can read data |
 
 `tzdata` is included so that Python's `zoneinfo` can validate timezones on Windows, which has no system timezone database.
 
@@ -180,10 +178,18 @@ One shared function trims the symptom name and collapses repeated whitespace to 
 
 - The dashboard shows each symptom's latest daily maximum and a 14-day pulse, built from the existing names and trends endpoints. Days without entries appear as empty outlines.
 - Severity colors use display bands: 1–3 mild, 4–6 moderate, 7–10 severe. These are not clinical categories.
-- The interface is light only.
+- Light is the default and dark is optional. Without a saved choice the interface follows the system setting.
 - Each view is in the URL hash, so reloading and the Back button work. Filters stay out of the URL so symptom names do not reach browser history.
 - Components stay on the existing token-based CSS. shadcn/ui would need a Tailwind migration, and Motion adds nothing over CSS for short transitions, so dialogs use native `<dialog>` and selection controls use native radio buttons.
 - The all-symptoms chart draws up to six symptoms at a time, reusing the per-symptom trend endpoint. Six is the size of the color palette, which is validated across all pairs because any two lines can cross. Marker shapes differ too, so identity does not rest on color alone.
+
+### History, reports, and AI insights
+
+- History is paged on the server, 25 entries by default. Trends stay unpaged, so charts cover the full filtered range.
+- PDFs are built in the browser from the same authorized API calls as the page, so reports need no endpoint of their own and a revoked doctor cannot export. The code loads only on export. A report holds at most 2,000 entries and says so when it is cut short. Built-in PDF fonts cover Western European text only, so other characters print as `?` with a note in the report.
+- AI insights are for patients only, run only when asked, and never affect logging, viewing, or export. The server computes the figures and sends only those to the provider, with no dates, notes, or identity. Doctors do not get the feature, because sending a patient's data to a provider should be the patient's choice.
+- Groq and OpenRouter are supported through one client, because both offer an OpenAI-compatible API. Groq is the default, because its model and output format are fixed. On OpenRouter only hosts that do not collect data are allowed.
+- The provider sits behind a small interface and is optional. Without one, or if it fails, the figures are shown and labelled as not written by AI, so no AI output is ever imitated.
 
 ### Editing and deleting
 
@@ -207,7 +213,7 @@ One shared function trims the symptom name and collapses repeated whitespace to 
 - **Authentication and ownership:** See [Authentication](#5-authentication) and [Authorization](#6-authorization).
 - **CORS:** Explicit origin allowlist from configuration; no wildcard.
 - **Environment variables:** `DATABASE_URL`, `JWT_SECRET`, `JWT_ALGORITHM`, and `CORS_ORIGINS` come from the environment. Real `.env` files are not committed; `.env.example` documents the names.
-- **Demo data:** Seed and demo data are synthetic only. Real health information must not be entered. `python -m app.seed_demo` runs only on request and refuses non-local databases.
+- **Demo data:** Seed and demo data are synthetic only. Real health information must not be entered. `python -m app.seed_demo` runs only on request. A hosted database needs its exact host confirmed and a private password, because the local demo password is public.
 - **Logs:** Logs exclude request bodies, query strings, symptom names, notes, passwords, and tokens.
 - **Accepted trade-off:** Registration reports when an email is already in use, which reveals that the account exists.
 

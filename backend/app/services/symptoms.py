@@ -86,11 +86,10 @@ def commit_or_rollback(db: Session) -> None:
         raise
 
 
-def save_entries(
-    db: Session, patient_id: uuid.UUID, entries: Sequence[SymptomEntryCreate]
+def build_entry_rows(
+    patient_id: uuid.UUID, entries: Sequence[SymptomEntryCreate]
 ) -> list[SymptomEntry]:
-    """Insert all entries in one transaction, so a failure saves none of them."""
-    rows = [
+    return [
         SymptomEntry(
             patient_id=patient_id,
             symptom_name=entry.symptom_name,
@@ -101,6 +100,13 @@ def save_entries(
         )
         for entry in entries
     ]
+
+
+def save_entries(
+    db: Session, patient_id: uuid.UUID, entries: Sequence[SymptomEntryCreate]
+) -> list[SymptomEntry]:
+    """Insert all entries in one transaction, so a failure saves none of them."""
+    rows = build_entry_rows(patient_id, entries)
     db.add_all(rows)
     commit_or_rollback(db)
     return rows
@@ -144,15 +150,17 @@ def date_range_conditions(filters: DateRangeFilters) -> list:
 
 def list_entries(
     db: Session, patient_id: uuid.UUID, filters: SymptomHistoryFilters
-) -> Sequence[SymptomEntry]:
-    """Return the patient's entries, newest first.
+) -> tuple[Sequence[SymptomEntry], int]:
+    """Return one page of the patient's entries, newest first, and the total matching.
 
-    Entries in one batch share `created_at`, so `id` makes the order fully deterministic.
+    Entries in one batch share `created_at`, so `id` makes the order fully deterministic,
+    which keeps an entry from appearing on two pages.
     """
     conditions = [SymptomEntry.patient_id == patient_id, *date_range_conditions(filters)]
     if filters.symptom:
         conditions.append(SymptomEntry.symptom_key == filters.symptom)
-    return db.scalars(
+    total = db.scalar(select(func.count()).select_from(SymptomEntry).where(*conditions)) or 0
+    rows = db.scalars(
         select(SymptomEntry)
         .where(*conditions)
         .order_by(
@@ -160,7 +168,10 @@ def list_entries(
             SymptomEntry.created_at.desc(),
             SymptomEntry.id.desc(),
         )
+        .limit(filters.page_size)
+        .offset((filters.page - 1) * filters.page_size)
     ).all()
+    return rows, total
 
 
 def list_symptom_names(db: Session, patient_id: uuid.UUID) -> list[dict[str, str]]:

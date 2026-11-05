@@ -4,21 +4,18 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query
 
 from app.api.deps import DbSession, DoctorUser
+from app.api.records import history_response, names_response, trend_response
 from app.authorization import require_patient_records_access
 from app.schemas import (
     SharedPatient,
     SharedPatientListResponse,
-    SymptomEntryListResponse,
-    SymptomEntryResponse,
     SymptomHistoryFilters,
-    SymptomName,
+    SymptomHistoryResponse,
     SymptomNameListResponse,
     SymptomTrendFilters,
     SymptomTrendResponse,
-    TrendPoint,
 )
 from app.services.sharing import list_shared_patients
-from app.services.symptoms import daily_max_severity, list_entries, list_symptom_names
 
 # Read-only by design: this router must never gain a route that changes patient records.
 router = APIRouter(prefix="/doctor", tags=["doctor"])
@@ -47,20 +44,15 @@ def read_patient_history(
     patient_id: SharedPatientId,
     filters: Annotated[SymptomHistoryFilters, Query()],
     db: DbSession,
-) -> SymptomEntryListResponse:
-    rows = list_entries(db, patient_id, filters)
-    return SymptomEntryListResponse(
-        entries=[SymptomEntryResponse.model_validate(row) for row in rows]
-    )
+) -> SymptomHistoryResponse:
+    return history_response(db, patient_id, filters)
 
 
 @router.get("/patients/{patient_id}/symptoms/names")
 def read_patient_symptom_names(
     patient_id: SharedPatientId, db: DbSession
 ) -> SymptomNameListResponse:
-    return SymptomNameListResponse(
-        symptoms=[SymptomName(**row) for row in list_symptom_names(db, patient_id)]
-    )
+    return names_response(db, patient_id)
 
 
 @router.get("/patients/{patient_id}/symptoms/trends")
@@ -69,8 +61,4 @@ def read_patient_trend(
     filters: Annotated[SymptomTrendFilters, Query()],
     db: DbSession,
 ) -> SymptomTrendResponse:
-    rows = daily_max_severity(db, patient_id, filters)
-    return SymptomTrendResponse(
-        symptom_key=filters.symptom,
-        points=[TrendPoint.model_validate(row, from_attributes=True) for row in rows],
-    )
+    return trend_response(db, patient_id, filters)

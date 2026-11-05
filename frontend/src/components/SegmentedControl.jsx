@@ -1,6 +1,5 @@
 import { useId } from 'react';
 
-// Native radio buttons underneath, so arrow keys and screen readers work as expected.
 export default function SegmentedControl({ label, options, value, onChange }) {
   const name = useId();
 
